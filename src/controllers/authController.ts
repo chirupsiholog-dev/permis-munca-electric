@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { redis } from '../lib/redisClient.js';
 import crypto from 'node:crypto'
 import type { CustomRequest } from '../middleware/getCurrentUser.js';
+import { error } from 'node:console';
 
 
 const secretKey = process.env.JWT_SECRET;
@@ -67,5 +68,25 @@ export const logout = async(req: Request, res: Response) => {
     }catch(err){
         return res.status(500).json({error: 'Failed to process logout.'})
     }
+
+}
+
+export const signup = async(req: Request, res: Response) => {
+
+    const {email, username, password} = req.body;
+
+    if(!email || !username || !password){
+        return res.status(401).json({error: 'Missing credentials'});
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const {error} = await supabase.from('users').insert({'email': email, 'username': username, 'password_hash': password_hash});
+
+    if(error){
+        console.log(error.message);
+        return res.status(500).json({error: 'Failed to process sign up'});
+    }
+
+    return res.status(200).json({success: true});
 
 }
