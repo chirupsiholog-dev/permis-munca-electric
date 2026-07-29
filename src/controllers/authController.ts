@@ -73,17 +73,28 @@ export const logout = async(req: Request, res: Response) => {
 
 export const signup = async(req: Request, res: Response) => {
 
-    const {email, username, password} = req.body;
+    const {email, username, password} = req.body ?? {};
 
-    if(!email || !username || !password){
-        return res.status(401).json({error: 'Missing credentials'});
+    if(typeof email !== 'string' || typeof username !== 'string' || typeof password !== 'string'){
+        return res.status(400).json({error: 'Invalid signup fields'});
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
-    const {error} = await supabase.from('users').insert({'email': email, 'username': username, 'password_hash': password_hash});
+    const {data: userData, error: userError} = await supabase.from('users').select('*').eq('email', email).maybeSingle();
+    if(userData){
+        return res.status(401).json({error: 'Email already used'});
+    }else if(userData.username === username){
+        return res.status(401).json({error: 'User name already used'});
+    }
 
-    if(error){
-        console.log(error.message);
+    try{
+        const password_hash = await bcrypt.hash(password, 10);
+        const {error: insertError} = await supabase.from('users').insert({'email': email, 'username': username, 'password_hash': password_hash});
+        if(insertError){
+            console.log(insertError);
+            return res.status(500).json({error: 'Failed to process sign up'});
+        }
+    }catch(err: any){
+        console.log(err.message);
         return res.status(500).json({error: 'Failed to process sign up'});
     }
 
