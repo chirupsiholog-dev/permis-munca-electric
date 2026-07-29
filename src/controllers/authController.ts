@@ -79,25 +79,44 @@ export const signup = async(req: Request, res: Response) => {
         return res.status(400).json({error: 'Invalid signup fields'});
     }
 
-    const {data: userData, error: userError} = await supabase.from('users').select('*').eq('email', email).maybeSingle();
-    if(userData){
-        return res.status(401).json({error: 'Email already used'});
-    }else if(userData.username === username){
-        return res.status(401).json({error: 'User name already used'});
-    }
-
     try{
-        const password_hash = await bcrypt.hash(password, 10);
-        const {error: insertError} = await supabase.from('users').insert({'email': email, 'username': username, 'password_hash': password_hash});
-        if(insertError){
-            console.log(insertError);
-            return res.status(500).json({error: 'Failed to process sign up'});
+        //check if either the email and username already exists in the db
+        const{data: existingUsers, error: checkError} = await supabase.from('users').select('email, username')
+                                                    .or(`email.eq.${email}, username.eq.${username}`);
+        if(checkError){
+            console.log('User check error:', checkError);
+            return res.status(500).json({ error: 'Database check failed' });
         }
-    }catch(err: any){
-        console.log(err.message);
-        return res.status(500).json({error: 'Failed to process sign up'});
-    }
 
-    return res.status(200).json({success: true});
+        //if there are already existing users with that username or email
+        if(existingUsers && existingUsers.length > 0){
+            const userWithSameEmail = existingUsers.filter(e => e.email === email);
+            
+            if(userWithSameEmail.length > 0){
+                return res.status(409).json({error: 'Email is already used'})
+            }else{
+                return res.status(409).json({error: 'Username is already used'});
+            }
+        }
+
+        //if the credentials are unused
+        const password_hash = await bcrypt.hash(password, 10);
+        const {error: insertError} = await supabase.from('users').insert({
+            'email': email,
+            'username': username,
+            'password_hash': password_hash,
+        })
+
+        if(insertError){
+            console.log('Insert error:', insertError);
+            return res.status(500).json({error: 'Failed to process signup'});
+        }
+
+        return res.status(200).json({success: true});
+
+    }catch(err: any){
+        console.error('Catch block error:', err.message);
+        return res.status(500).json({ error: 'An unexpected error occurred' });
+    }
 
 }

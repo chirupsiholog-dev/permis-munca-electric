@@ -39,7 +39,6 @@ export const getCurrentUser = async(req: Request, res: Response, next: NextFunct
     
     //check if the token is blacklisted => logged out
     const isBlacklisted = await redis.get(`bl_${payload.jwtId}`);
-    console.log(isBlacklisted);
     if(isBlacklisted){
         return res.status(401).json({'error': 'Token has been invalidated (logged out)'});
     }
