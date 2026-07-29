@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
-import crypto from 'node:crypto';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'
 
 export const login = async(req: Request, res: Response) => {
@@ -18,10 +18,12 @@ export const login = async(req: Request, res: Response) => {
     }
 
     if(!data){
-       return res.status(400).json({'error': 'User not found'});
+       return res.status(401).json({'error': 'Invalid credentials'});
     }
 
-    if(crypto.hash('sha256', password) !== data?.password_hash){
+    const passwordsMatch = await bcrypt.compare(password, data.password_hash);
+
+    if(!passwordsMatch){
         return res.status(401).json({'error': 'Invalid credentials'});
     }
 
@@ -32,7 +34,7 @@ export const login = async(req: Request, res: Response) => {
         throw new Error('JWT Secret not loaded from env');
     }
 
-    const token = jwt.sign({userId: data?.id}, secretKey, {expiresIn: '1d'}); //expiresIn is injected into the {userId: data.id} payload
+    const token = jwt.sign({sub: data?.id}, secretKey, {expiresIn: '1d'}); //expiresIn is injected into the {userId: data.id} payload
     return res.status(200).json({'success': true, 'token': token});
 
 }
