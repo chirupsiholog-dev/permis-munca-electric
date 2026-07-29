@@ -9,7 +9,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
         .order('created_at', { ascending: false });
 
     if (error) {
-        return res.status(400).json({
+        return res.status(500).json({
             'error': error
         });
     }
@@ -95,7 +95,7 @@ export const postDocument = async (req: Request, res: Response) => {
 
     console.log('Inserted: ', data);
 
-    return res.status(200).json({
+    return res.status(201).json({
         'message': 'Successfully inserted data',
         'data': data
     });
