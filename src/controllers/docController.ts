@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
 import { supabase } from '../lib/supabaseClient.js';
+import fs from 'fs'; //for accessing the test pdf
+import path from 'path';
+import crypto from 'crypto';
 
 export const getAllDocuments = async (req: Request, res: Response) => {
 
@@ -71,35 +74,74 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
 }
 
 export const postDocument = async (req: Request, res: Response) => {
-    const { name, link, status, link_expiration_date, created_at } = req.body;
+    const { status, link_expiration_date } = req.body;
 
     const userId = req.user;
 
-    console.log('name: ', name);
-    console.log('exp date: ', link_expiration_date);
-
-    if (!name || !link || !status || !link_expiration_date || !created_at) {
+    if (!status || !link_expiration_date) {
         return res.status(400).json({
             'error': 'Input data is invalid'
         });
     }
 
+    //locate and read the file into a buffer
+    const filePath = path.join(process.cwd(), 'src', 'assets', 'recursivitate.pdf') //specify the path - cwd() sters from the root of the project directory
+
+    if (!fs.existsSync(filePath)) {
+        //if the path does not exist
+        return res.status(500).json({
+            'error': 'Could not find PDF'
+        });
+    }
+
+    const pdfBuffer = fs.readFileSync(filePath);
+
+    //generate unique filename for storing inside of the bucket
+    const uniqueFileName = `Test - ${Date.now()} - ${crypto.randomUUID()}.pdf`;
+    const storagePath = `initialDocs/${uniqueFileName}`;
+
+    //upload buffer to supabase storage
+    const { error: storageError } = await supabase.storage
+    .from('Documents') //the name of the bucket
+    .upload(storagePath, pdfBuffer, {
+        contentType: 'application/json',
+        upsert: true //if a doc with the same name alr exists it gets replaced
+    });
+
+    if (storageError) {
+        return res.status(500).json({
+            'error': 'Error while saving the document to the bucket'
+        });
+    }
+
+    //get the link generated for the uploaded file
+    const { data: urlData } = supabase.storage
+    .from('Documents')
+    .getPublicUrl(storagePath);
+
+    if (!urlData) {
+        return res.status(500).json({
+            'error': 'Could not get the URL where the doc is stored'
+        });
+    }
+
+    const link_generat = urlData.publicUrl;
+
     const { data, error } = await supabase
     .from('documents')
     .insert({
+        'name': uniqueFileName,
         'user_id': userId,
-        'name': name,
-        'link_generat': link,
         'status': status,
+        'link_generat': link_generat,
         'link_expiration_date': link_expiration_date,
-        'created_at': created_at 
     })
     .select('*')
     .single();
 
     if (error) {
         return res.status(400).json({
-            'error': 'Error while inserting the data'
+            'error': error
         })
     }
 
