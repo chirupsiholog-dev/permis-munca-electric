@@ -1,4 +1,4 @@
-interface Semnatar{
+export interface Semnatar{
     email: string,
     nume: string,
     prenume: string,
@@ -77,10 +77,10 @@ export async function uploadFile(doc: string, fileName: string){
 
 }
 
-export async function createEnvelope(doc: string, semnatari: Semnatar[], accessCode: string, callbackUrl: string){
+export async function createEnvelope(doc: string, semnatari: Semnatar[], accessCode: string, callbackUrl: string, fileName: string){
 
     try{
-        const fileId = await uploadFile(doc, 'doc.pdf');
+        const fileId = await uploadFile(doc, fileName);
 
         const actions = semnatari.map((s, signeeIdx) => ({
             "Action": {

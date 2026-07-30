@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import fs from 'fs'; //for accessing the test pdf
 import path from 'path';
 import crypto from 'crypto';
+import { createEnvelope, type Semnatar } from "../lib/namirial.js";
 
 export const getAllDocuments = async (req: Request, res: Response) => {
 
@@ -74,8 +75,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
 }
 
 export const postDocument = async (req: Request, res: Response) => {
-    const { status, link_expiration_date } = req.body;
-
+    const { status, link_expiration_date } = req.body; //add semnatari
     const userId = req.user;
 
     if (!status || !link_expiration_date) {
@@ -83,6 +83,10 @@ export const postDocument = async (req: Request, res: Response) => {
             'error': 'Input data is invalid'
         });
     }
+
+    //find user email
+    //create semnatari array
+    const semnatari: Semnatar[] = [];
 
     //locate and read the file into a buffer
     const filePath = path.join(process.cwd(), 'src', 'assets', 'recursivitate.pdf') //specify the path - cwd() sters from the root of the project directory
@@ -146,6 +150,16 @@ export const postDocument = async (req: Request, res: Response) => {
     }
 
     console.log('Inserted: ', data);
+    
+    const base64 = pdfBuffer.toBase64();
+    const callbackUrl = 'http://localhost:3000/api/namirial/webhook'; //replace with real app url
+    const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
+
+    try{
+        await createEnvelope(base64, semnatari, accessCode, callbackUrl, uniqueFileName);
+    }catch(err: any){
+        return res.status(500).json({error: err.message})
+    }
 
     return res.status(201).json({
         'success': true,
