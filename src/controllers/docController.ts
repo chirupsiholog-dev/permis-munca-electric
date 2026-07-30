@@ -98,6 +98,12 @@ export const postDocument = async (req: Request, res: Response) => {
     .select('email, username')
     .eq('id', userId)
     .maybeSingle();
+
+    if(userEmailQuery.error || !userEmailQuery.data){
+        return res.status(400).json({
+            'error': 'Failed to fetch user data'
+        });
+    }
     
     const numeTokens = userEmailQuery.data?.username.trim().split(" ");
     const numeEmitent = numeTokens[0];
@@ -149,14 +155,14 @@ export const postDocument = async (req: Request, res: Response) => {
     const pdfBuffer = fs.readFileSync(filePath);
 
     //generate unique filename for storing inside of the bucket
-    const uniqueFileName = `Permis ${numeSefLucrare} ${prenumeSefLucrare} - ${Date.now()}.pdf`;
+    const uniqueFileName = `Permis ${numeSefLucrare} ${prenumeSefLucrare} - ${Date.now()}-${crypto.randomUUID()}.pdf`;
     const storagePath = `initialDocs/${uniqueFileName}`;
 
     //upload buffer to supabase storage
     const { error: storageError } = await supabase.storage
     .from('Documents') //the name of the bucket
     .upload(storagePath, pdfBuffer, {
-        contentType: 'application/json',
+        contentType: 'application/pdf',
         upsert: true //if a doc with the same name alr exists it gets replaced
     });
 

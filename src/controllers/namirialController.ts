@@ -131,11 +131,6 @@ async function syncEnvelopeActivities(envelopeId: string){
 
 async function updateFinal(envelopeId: string){
 
-    const {error: updateStatusError} = await supabase.from('documents').update({'sef_lucrare_status': 'semnat', 'status': 'semnat'}).eq('namirial_envelope_id', envelopeId);
-    if(updateStatusError){
-        throw new Error(`DB Error: ${updateStatusError.message}`)
-    }
-
     const data = await downloadSigned(envelopeId);
     if(!data.documents || data.documents.length === 0) {
         throw new Error('Could not download documents');
@@ -170,7 +165,9 @@ async function updateFinal(envelopeId: string){
 
     const {error: signedUpdateError} = await supabase.from('documents').update(
         {
-            'link_semnat': urlData.publicUrl
+            'link_semnat': urlData.publicUrl,
+            'sef_lucrare_status': 'semnat', 
+            'status': 'semnat'
         }
     ).eq('namirial_envelope_id', envelopeId);
 
