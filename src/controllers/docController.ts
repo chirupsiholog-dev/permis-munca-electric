@@ -151,7 +151,7 @@ export const postDocument = async (req: Request, res: Response) => {
 
     console.log('Inserted: ', data);
     
-    const base64 = pdfBuffer.toBase64();
+    const base64 = pdfBuffer.toString('base64');
     const callbackUrl = 'http://localhost:3000/api/namirial/webhook'; //replace with real app url
     const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
 

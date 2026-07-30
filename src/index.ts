@@ -9,7 +9,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', docRoutes);
-app.use('api/namirial', namirialRoutes);
+app.use('/api/namirial', namirialRoutes);
 
 app.listen(3030, () => {
     console.log('Server is running on port 3030');
