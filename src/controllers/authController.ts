@@ -4,8 +4,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'
 import { redis } from '../lib/redisClient.js';
 import crypto from 'node:crypto'
-import type { CustomRequest } from '../middleware/getCurrentUser.js';
-import { error } from 'node:console';
 
 
 const secretKey = process.env.JWT_SECRET;

@@ -1,7 +1,5 @@
 import express from 'express';
-import path from 'node:path';
-import fs from 'node:fs';
-import authRoutes from './router/authRoutes.js'
+import authRoutes from './router/authRoutes.js';
 
 const app = express();
 app.use(express.json()); //middleware for parsing json
