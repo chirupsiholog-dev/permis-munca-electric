@@ -36,6 +36,19 @@ export const webhookHandler = async(req: Request, res: Response) => {
 
 async function syncEnvelopeActivities(envelopeId: string){
 
+    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status').eq('namirial_envelope_id', envelopeId).maybeSingle();
+    if(envelopeStatusError){
+        throw new Error(`DB Error: ${envelopeStatusError.message}`)
+    }
+
+    if(!envelopeStatus){
+        throw new Error('DB returned no data for the envelope');
+    }
+
+    if(envelopeStatus.user_status === 'semnat'){
+        await updateFinal(envelopeId);
+        return;
+    }  
 
     const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').update({'user_status': 'semnat', 'status': 'semnat_emitent'}).eq('namirial_envelope_id', envelopeId).select('sef_lucrare_email, cod_acces').maybeSingle();
     if(updateStatusError){
@@ -43,7 +56,7 @@ async function syncEnvelopeActivities(envelopeId: string){
     }
 
     if(!sefLucrareData){
-        throw new Error('DB return no data for sef lucrare');
+        throw new Error('DB returned no data for sef lucrare');
     }
 
     const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
@@ -51,7 +64,7 @@ async function syncEnvelopeActivities(envelopeId: string){
         throw new Error(`Viewer link not found for email: ${sefLucrareData.sef_lucrare_email}`);
     }
 
-    const res = await resend.emails.send(
+    const { data, error } = await resend.emails.send(
         {
       from: 'Permis Electric Munca <ssm@razvanchiru.ro>',
       to: [sefLucrareData.sef_lucrare_email],
@@ -109,6 +122,9 @@ async function syncEnvelopeActivities(envelopeId: string){
       `
         }
       )
+    if (error) {
+      throw new Error(`Resend email failed: ${error.message}`);
+    }
 
 }
 

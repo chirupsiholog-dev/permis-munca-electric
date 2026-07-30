@@ -150,12 +150,12 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
         }
 
         const data = await namirialFetch('envelope/send', 'POST', envelopeBody);
-        if(!data)
-            throw new Error('Namirial envelope creation failed');
+        if(!data?.EnvelopeId)
+            throw new Error('Namirial envelope creation failed: missing EnvelopeId');
         return data.EnvelopeId as string;
-
     }catch(err){
-        throw new Error('Namirial envelope creation failed'); //catch in post endpoint when envelope is uploaded
+        console.error('Namirial envelope creation failed:', err);
+        throw new Error('Namirial envelope creation failed', { cause: err });
     }
 
 }
