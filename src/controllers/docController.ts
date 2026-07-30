@@ -79,8 +79,6 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
 export const postDocument = async (req: Request, res: Response) => {
     const { status, 
         link_expiration_date, 
-        numeEmitent, 
-        prenumeEmitent, 
         emailSefLucrare, 
         numeSefLucrare, 
         prenumeSefLucrare
@@ -97,10 +95,14 @@ export const postDocument = async (req: Request, res: Response) => {
     //find user email
     const userEmailQuery  = await supabase
     .from('users')
-    .select('email')
+    .select('email, username')
     .eq('id', userId)
     .maybeSingle();
     
+    const numeTokens = userEmailQuery.data?.username.trim().split(" ");
+    const numeEmitent = numeTokens[0];
+    const prenumeEmitent = numeTokens.slice(1).join(" ");
+
     const userEmail = userEmailQuery.data?.email;
 
     console.log('user email: ', userEmail);
@@ -135,7 +137,7 @@ export const postDocument = async (req: Request, res: Response) => {
     });
 
     //locate and read the file into a buffer
-    const filePath = path.join(process.cwd(), 'src', 'assets', 'recursivitate.pdf') //specify the path - cwd() sters from the root of the project directory
+    const filePath = path.join(process.cwd(), 'src', 'assets', 'PERMIS ELECTRIC.pdf') //specify the path - cwd() sters from the root of the project directory
 
     if (!fs.existsSync(filePath)) {
         //if the path does not exist
@@ -147,7 +149,7 @@ export const postDocument = async (req: Request, res: Response) => {
     const pdfBuffer = fs.readFileSync(filePath);
 
     //generate unique filename for storing inside of the bucket
-    const uniqueFileName = `Test - ${Date.now()} - ${crypto.randomUUID()}.pdf`;
+    const uniqueFileName = `Permis ${numeSefLucrare} ${prenumeSefLucrare} - ${Date.now()}.pdf`;
     const storagePath = `initialDocs/${uniqueFileName}`;
 
     //upload buffer to supabase storage
@@ -181,7 +183,9 @@ export const postDocument = async (req: Request, res: Response) => {
     const base64 = pdfBuffer.toString('base64');
     const callbackUrl = 'http://localhost:3000/api/namirial/webhook'; //replace with real app url
     const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
-
+    
+    console.log(semnatari);
+    
     try {
         const envelopeId = await createEnvelope(base64, semnatari, accessCode, callbackUrl, uniqueFileName);
 

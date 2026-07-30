@@ -72,7 +72,7 @@ export async function uploadFile(doc: string, fileName: string){
 
     //upload it to namirial - post request, with the form data as body
     const data = await namirialFetch('file/upload', 'POST', formData); //will throw if something goes wrong => try-catch in createEnvelope
-    const fileId = data.fileId;
+    const fileId = data.FileId;
     return fileId;
 
 }
@@ -99,22 +99,23 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                             }
                         },
 
-                        "SendEmails": true,
+                        "SendEmails": false,
                     },
 
 
                     "Elements":{
                         "Signatures": s.signatures.map((sig, signatureIdx) => (
                             {
-                                "GuidingOrder": signatureIdx,
+                                "GuidingOrder": signatureIdx + 1,
                                 "ElementId": `sig_signee${signeeIdx}_field${signatureIdx}`,
                                 "Required": true,
-                                "DocumentNumber": 0,
+                                "DocumentNumber": 1,
                                 "AllowedSignatureTypes":{DrawToSign: {
                                     "StampImprintConfiguration": {
                                         "DisplayName": true,
                                         "DisplaySignatureDate": true,
                                         "DisplayIp": false,
+                                        "DisplayEmail": false
                                     }
                                 }},
                                 "FieldDefinition":{
@@ -134,7 +135,7 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
             "Documents": [
                 {
                     "FileId": fileId,
-                    "DocumentNumber": 0
+                    "DocumentNumber": 1
                 }
             ],
 
@@ -184,4 +185,46 @@ export async function getEnvelopeStatus(envelopeId: string): Promise<{status: st
             email: d.Action?.Sign?.RecipientConfiguration?.ContactInformation?.Email || '',
         }))
     }
+}
+
+export async function namirialDownloadFile(path: string): Promise<ArrayBuffer> {
+    const baseUrl = process.env.NAMIRIAL_BASE_URL;
+    const token = process.env.NAMIRIAL_API_TOKEN;
+
+    if(!baseUrl || !token) throw new Error('Namirial credentials missing');
+
+    const res = await fetch(`${baseUrl}/api/v6/${path}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+        throw new Error(`Namirial file download failed with status ${res.status}`);
+    }
+
+    // Use .arrayBuffer() instead of .json()
+    return await res.arrayBuffer(); 
+}
+
+export async function downloadSigned(envelopeId: string){
+
+    const data = await namirialFetch(`envelope/${envelopeId}/files`, 'GET');
+    const documents = []
+    for(const doc of data.Documents ?? []){
+            const buffer = await namirialDownloadFile(`file/${doc.FileId}`);        
+            documents.push({
+                fileId: doc.FileId,
+                fileName: doc.FileName,
+                base64: Buffer.from(buffer).toString('base64')
+        })
+    }
+
+    let pdfBase64:  string | null = null;
+    if(data.AuditTrail?.FileId){
+        const buffer = await namirialDownloadFile(`file/${data.AuditTrail.FileId}`);
+        pdfBase64 = Buffer.from(buffer).toString('base64');
+    }
+
+    return {documents, pdfBase64};
+
 }

@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { supabase } from "../lib/supabaseClient.js";
 import { Resend } from "resend";
-import { getViewerLinks } from "../lib/namirial.js";
+import { getViewerLinks, downloadSigned } from "../lib/namirial.js";
+import { error } from "node:console";
 
 const resendKey = process.env.RESEND_API_KEY;
 if(!resendKey){
@@ -135,4 +136,45 @@ async function updateFinal(envelopeId: string){
         throw new Error(`DB Error: ${updateStatusError.message}`)
     }
 
+    const data = await downloadSigned(envelopeId);
+    if(!data.documents || data.documents.length === 0) {
+        throw new Error('Could not download documents');
+    }
+
+    const firstDoc = data.documents?.[0];
+    if (!firstDoc) {
+        throw new Error('Could not download documents or document array is empty');
+    }
+
+    const pdfBase64 = firstDoc.base64;
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const docName = firstDoc.fileName;
+
+    const storagePath = `signedDocs/signed_${docName}`;
+    const {error: uploadError} = await supabase.storage.from('Documents')
+                    .upload(storagePath, pdfBuffer, {
+                        contentType: 'application/pdf',
+                        upsert: true
+                    })
+    if(uploadError) {
+        throw new Error(`Upload Error: ${uploadError.message}`);
+    }
+
+    const { data: urlData } = supabase.storage
+    .from('Documents')
+    .getPublicUrl(storagePath);
+
+    if(!urlData || !urlData.publicUrl){
+        throw new Error('Failed to fetch signed doc storage URL');
+    }
+
+    const {error: signedUpdateError} = await supabase.from('documents').update(
+        {
+            'link_semnat': urlData.publicUrl
+        }
+    ).eq('namirial_envelope_id', envelopeId);
+
+    if(signedUpdateError){
+        throw new Error("Failed to update link_semnat");
+    }
 }
