@@ -113,12 +113,13 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                                 "AllowedSignatureTypes":{DrawToSign: {
                                     "StampImprintConfiguration": {
                                         "DisplayName": true,
-                                        "DisplaySignatureDate": true
+                                        "DisplaySignatureDate": true,
+                                        "DisplayIp": false,
                                     }
                                 }},
                                 "FieldDefinition":{
                                     Position: { PageNumber: sig.page, X: sig.x, Y: sig.y },
-                                    Size: { Width: 150, Height: 104 },
+                                    Size: { Width: 100, Height: 20 },
                                 }
                             }
                         ))
@@ -148,10 +149,39 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
             }
         }
 
-        await namirialFetch('envelope/send', 'POST', envelopeBody);
+        const data = await namirialFetch('envelope/send', 'POST', envelopeBody);
+        if(!data)
+            throw new Error('Namirial envelope creation failed');
+        return data.EnvelopeId as string;
 
     }catch(err){
         throw new Error('Namirial envelope creation failed'); //catch in post endpoint when envelope is uploaded
     }
 
+}
+
+export async function getViewerLinks(envelopeId: string): Promise<
+Array<{activityId: string, email: string, link: string}>>{
+
+    const data = await namirialFetch(`envelope/${envelopeId}/viewerlinks`, 'GET'); //throws if something's wrong
+    return (data.ViewerLinks || []).map((d: any) => ({
+
+        activityId: d.ActivityId,
+        email: d.Email,
+        link: d.ViewerLink
+    }))
+}
+
+export async function getEnvelopeStatus(envelopeId: string): Promise<{status: string
+    activities: Array<{ id: string, status: string, email: string }>
+}>{
+    const data = await namirialFetch(`envelope/${envelopeId}`, 'GET'); //throws
+    return {
+        status: data.EnvelopeStatus,
+        activities: (data.Activities || []).map((d: any) => ({
+            id: d.Id,
+            status: d.Status,
+            email: d.Action?.Sign?.RecipientConfiguration?.ContactInformation?.Email || '',
+        }))
+    }
 }
