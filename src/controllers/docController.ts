@@ -3,9 +3,12 @@ import { supabase } from '../lib/supabaseClient.js';
 
 export const getAllDocuments = async (req: Request, res: Response) => {
 
+    const userId = req.user;
+
     const { data, error } = await supabase
         .from('documents')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -23,6 +26,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
     console.log('found: ', data);
 
     return res.status(200).json({
+        'success': true,
         'message': 'Sucessfully retrieved all documents',
         'data': data
     });
@@ -30,6 +34,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
 
 export const getDocumentOnId = async (req: Request, res: Response) => {
     const { id } = req.params;
+    const userId = req.user;
 
     if (!id) {
         return res.status(500).json({
@@ -41,6 +46,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
     .from('documents')
     .select('*')
     .eq('id', id)
+    .eq('user_id', userId)
     .maybeSingle();
 
     if (error) {
@@ -49,7 +55,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
         });
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
         return res.status(404).json({
             'error': 'No document was found with id ', id
         });
@@ -58,6 +64,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
     console.log('found: ', data);
 
     return res.status(200).json({
+        'success': true,
         'message': 'Successfully retrieved document',
         'data': data
     });
@@ -65,6 +72,8 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
 
 export const postDocument = async (req: Request, res: Response) => {
     const { name, link, status, link_expiration_date, created_at } = req.body;
+
+    const userId = req.user;
 
     console.log('name: ', name);
     console.log('exp date: ', link_expiration_date);
@@ -78,6 +87,7 @@ export const postDocument = async (req: Request, res: Response) => {
     const { data, error } = await supabase
     .from('documents')
     .insert({
+        'user_id': userId,
         'name': name,
         'link': link,
         'status': status,
@@ -96,6 +106,7 @@ export const postDocument = async (req: Request, res: Response) => {
     console.log('Inserted: ', data);
 
     return res.status(201).json({
+        'success': true,
         'message': 'Successfully inserted data',
         'data': data
     });
