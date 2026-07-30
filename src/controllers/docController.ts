@@ -17,7 +17,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
         });
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
         return res.status(404).json({
             error: 'No documents found'
         });
@@ -55,7 +55,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
         });
     }
 
-    if (!data || data.length === 0) {
+    if (!data) {
         return res.status(404).json({
             'error': 'No document was found with id ', id
         });
