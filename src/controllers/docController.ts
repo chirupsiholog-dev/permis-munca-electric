@@ -89,7 +89,7 @@ export const postDocument = async (req: Request, res: Response) => {
     .insert({
         'user_id': userId,
         'name': name,
-        'link': link,
+        'link_generat': link,
         'status': status,
         'link_expiration_date': link_expiration_date,
         'created_at': created_at 
