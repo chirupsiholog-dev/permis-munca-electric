@@ -74,8 +74,18 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
     });
 }
 
+
+
 export const postDocument = async (req: Request, res: Response) => {
-    const { status, link_expiration_date } = req.body; //add semnatari
+    const { status, 
+        link_expiration_date, 
+        numeEmitent, 
+        prenumeEmitent, 
+        emailSefLucrare, 
+        numeSefLucrare, 
+        prenumeSefLucrare
+    } = req.body;
+
     const userId = req.user;
 
     if (!status || !link_expiration_date) {
@@ -85,8 +95,44 @@ export const postDocument = async (req: Request, res: Response) => {
     }
 
     //find user email
+    const userEmailQuery  = await supabase
+    .from('users')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+    
+    const userEmail = userEmailQuery.data?.email;
+
+    console.log('user email: ', userEmail);
+
     //create semnatari array
     const semnatari: Semnatar[] = [];
+
+    //first semnatar is the emitent(user)
+    semnatari.push({
+        email: userEmail,
+        nume: numeEmitent,
+        prenume: prenumeEmitent,
+        signatures: [{
+            'page': 1, 'x': 398, 'y': 426
+        }, {
+            'page': 3, 'x': 248, 'y': 127
+        }]
+    });
+
+    //second semnatar is sef_lucrare
+    semnatari.push({
+        email: emailSefLucrare,
+        nume: numeSefLucrare,
+        prenume: prenumeSefLucrare,
+        signatures: [{
+            'page': 1, 'x': 398, 'y': 448
+        }, {
+            'page': 2, 'x': 246, 'y': 446
+        }, {
+            'page': 2, 'x': 227, 'y': 757
+        }]
+    });
 
     //locate and read the file into a buffer
     const filePath = path.join(process.cwd(), 'src', 'assets', 'recursivitate.pdf') //specify the path - cwd() sters from the root of the project directory
@@ -131,41 +177,46 @@ export const postDocument = async (req: Request, res: Response) => {
 
     const link_generat = urlData.publicUrl;
 
-    const { data, error } = await supabase
-    .from('documents')
-    .insert({
-        'name': uniqueFileName,
-        'user_id': userId,
-        'status': status,
-        'link_generat': link_generat,
-        'link_expiration_date': link_expiration_date,
-    })
-    .select('*')
-    .single();
 
-    if (error) {
-        return res.status(400).json({
-            'error': error
-        })
-    }
-
-    console.log('Inserted: ', data);
-    
     const base64 = pdfBuffer.toString('base64');
     const callbackUrl = 'http://localhost:3000/api/namirial/webhook'; //replace with real app url
     const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
 
-    try{
-        await createEnvelope(base64, semnatari, accessCode, callbackUrl, uniqueFileName);
+    try {
+        const envelopeId = await createEnvelope(base64, semnatari, accessCode, callbackUrl, uniqueFileName);
+
+        const { data, error } = await supabase
+        .from('documents')
+        .insert({
+            'name': uniqueFileName,
+            'status': status,
+            'link_expiration_date': link_expiration_date,
+            'link_generat': link_generat,
+            'user_id': userId,
+            'user_status': 'pending',
+            'sef_lucrare_email': emailSefLucrare,
+            'sef_lucrare_status': 'pending',
+            'namirial_envelope_id': envelopeId,
+            'cod_acces': accessCode
+        })
+        .select('*')
+        .single();
+
+        if (error) {
+            return res.status(400).json({
+            'error': error
+            });
+        }
+
+        console.log('Inserted: ', data);
+
+        return res.status(201).json({
+            'success': true,
+            'message': 'Successfully inserted data',
+            'data': data
+        });
+
     }catch(err: any){
-        return res.status(500).json({error: err.message})
+        return res.status(500).json({error: err.message});
     }
-
-    return res.status(201).json({
-        'success': true,
-        'message': 'Successfully inserted data',
-        'data': data
-    });
-
-    
 }
