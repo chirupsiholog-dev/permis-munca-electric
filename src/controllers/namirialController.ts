@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { supabase } from "../lib/supabaseClient.js";
 import { Resend } from "resend";
 import { getViewerLinks, downloadSigned } from "../lib/namirial.js";
-import { error } from "node:console";
+import { generateZip } from "../lib/utils.js";
 
 const resendKey = process.env.RESEND_API_KEY;
 if(!resendKey){
@@ -21,11 +21,8 @@ export const webhookHandler = async(req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing envelope ID' })
         }
 
-        if(!action){
-            await updateFinal(envelopeId);
-        }else if(action.toLowerCase() === 'workstepfinished'){
-            await syncEnvelopeActivities(envelopeId);
-        }
+        if(action?.toLowerCase() === 'workstepfinished')
+          await syncEnvelopeActivities(envelopeId);
 
         return res.status(200).json({success: true});
     }catch(err){
@@ -37,7 +34,7 @@ export const webhookHandler = async(req: Request, res: Response) => {
 
 async function syncEnvelopeActivities(envelopeId: string){
 
-    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status').eq('namirial_envelope_id', envelopeId).maybeSingle();
+    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status, sef_lucrare_email').eq('namirial_envelope_id', envelopeId).maybeSingle();
     if(envelopeStatusError){
         throw new Error(`DB Error: ${envelopeStatusError.message}`)
     }
@@ -47,11 +44,11 @@ async function syncEnvelopeActivities(envelopeId: string){
     }
 
     if(envelopeStatus.user_status === 'semnat'){
-        await updateFinal(envelopeId);
+        await updateFinal(envelopeId, envelopeStatus?.sef_lucrare_email);
         return;
     }  
 
-    const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').update({'user_status': 'semnat', 'status': 'semnat_emitent'}).eq('namirial_envelope_id', envelopeId).select('sef_lucrare_email, cod_acces').maybeSingle();
+    const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').update({'user_status': 'semnat', 'status': 'semnat_emitent'}).eq('namirial_envelope_id', envelopeId).select('cod_acces').maybeSingle();
     if(updateStatusError){
         throw new Error(`DB Error: ${updateStatusError.message}`)
     }
@@ -62,13 +59,13 @@ async function syncEnvelopeActivities(envelopeId: string){
 
     const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
     if(!sefLucrareLink){
-        throw new Error(`Viewer link not found for email: ${sefLucrareData.sef_lucrare_email}`);
+        throw new Error(`Viewer link not found for email: ${envelopeStatus.sef_lucrare_email}`);
     }
 
     const { data, error } = await resend.emails.send(
         {
       from: 'Permis Electric Munca <ssm@razvanchiru.ro>',
-      to: [sefLucrareData.sef_lucrare_email],
+      to: [envelopeStatus.sef_lucrare_email],
       subject: 'Semnatura permis electric de munca',
       html: `
         <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#F4F5F7;padding:24px">
@@ -86,7 +83,7 @@ async function syncEnvelopeActivities(envelopeId: string){
             </div>
 
             <div style="padding:32px 30px">
-              <p style="font-size:15px;color:#1E293B;margin:0 0 20px">Buna ziua, <strong>${sefLucrareData.sef_lucrare_email}</strong>!</p>
+              <p style="font-size:15px;color:#1E293B;margin:0 0 20px">Buna ziua, <strong>${envelopeStatus.sef_lucrare_email}</strong>!</p>
 
               <div style="display:flex;align-items:center;gap:10px;background:#ECFDF5;border-left:4px solid #10B981;border-radius:6px;padding:14px 16px;margin-bottom:20px">
                 <p style="color:#047857;margin:0;font-size:14px">
@@ -129,9 +126,10 @@ async function syncEnvelopeActivities(envelopeId: string){
 
 }
 
-async function updateFinal(envelopeId: string){
+async function updateFinal(envelopeId: string, sefLucrareEmail: string){
 
     const data = await downloadSigned(envelopeId);
+
     if(!data.documents || data.documents.length === 0) {
         throw new Error('Could not download documents');
     }
@@ -176,4 +174,55 @@ async function updateFinal(envelopeId: string){
     }
 
     //send emails with signed documents - to emitent and sef lucrare
+    //get zipbytes (zip buffer)
+    const zipBuffer = await generateZip(data);
+
+    const { data: emailData, error } = await resend.emails.send(
+        {
+      from: 'Permis Electric Munca <ssm@razvanchiru.ro>',
+      to: [sefLucrareEmail],
+      subject: 'Semnatura permis electric de munca',
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#F4F5F7;padding:24px">
+          <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+            
+            <div style="background:linear-gradient(135deg,#1E293B,#334155);padding:28px 30px">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600;letter-spacing:0.3px">SSM Platform</h1>
+                    <p style="color:#94A3B8;margin:4px 0 0;font-size:13px">Permis electric de munca</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="padding:32px 30px">
+              <p style="font-size:15px;color:#1E293B;margin:0 0 20px">Buna ziua, <strong>${sefLucrareEmail}</strong>!</p>
+
+              <div style="display:flex;align-items:center;gap:10px;background:#ECFDF5;border-left:4px solid #10B981;border-radius:6px;padding:14px 16px;margin-bottom:20px">
+                <p style="color:#047857;margin:0;font-size:14px">
+                  ✓ Semnarea permisului electric de munca a fost finalizata
+                </p>
+              </div>
+
+              <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+                Pentru a finaliza procesul, puteti descarca permisul atasat.
+              </p>
+
+            <div style="background:#F8FAFC;padding:16px 30px;border-top:1px solid #E2E8F0">
+              <p style="color:#94A3B8;font-size:11px;text-align:center;margin:0">Permis Electric Munca — Chiru & Asociatii</p>
+            </div>
+          </div>
+        </div>
+      `,
+      attachments: [{
+          content: zipBuffer,
+          filename: `permis_electric_munca_${envelopeId}_${sefLucrareEmail}.zip`
+          }]
+        }
+      )
+    if (error) {
+      throw new Error(`Resend email failed: ${error.message}`);
+    }
 }

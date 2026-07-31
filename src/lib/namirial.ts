@@ -5,6 +5,12 @@ export interface Semnatar{
     signatures: {page: number, x: number, y: number}[]
 }
 
+export interface Document{
+    fileId: string,
+    fileName: string,
+    base64: string
+}
+
 export async function namirialFetch(path: string, method: string, body?: any){
     
     const baseUrl = process.env.NAMIRIAL_BASE_URL;
@@ -209,7 +215,8 @@ export async function namirialDownloadFile(path: string): Promise<ArrayBuffer> {
 export async function downloadSigned(envelopeId: string){
 
     const data = await namirialFetch(`envelope/${envelopeId}/files`, 'GET');
-    const documents = []
+    const documents: Document[] = []
+
     for(const doc of data.Documents ?? []){
             const buffer = await namirialDownloadFile(`file/${doc.FileId}`);        
             documents.push({
@@ -219,12 +226,12 @@ export async function downloadSigned(envelopeId: string){
         })
     }
 
-    let pdfBase64:  string | null = null;
+    let pdfBase64:  string = '';
     if(data.AuditTrail?.FileId){
         const buffer = await namirialDownloadFile(`file/${data.AuditTrail.FileId}`);
         pdfBase64 = Buffer.from(buffer).toString('base64');
     }
 
-    return {documents, pdfBase64};
+    return {documents: documents, pdfAuditTrail: pdfBase64};
 
 }

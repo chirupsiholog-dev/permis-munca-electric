@@ -1,10 +1,5 @@
 import JSZip from "jszip";
-
-interface Document{
-    fileId: string,
-    fileName: string,
-    base64: string
-}
+import type { Document } from "./namirial.js";
 
 export async function generateZip(data: {documents: Document[], pdfAuditTrail: string}){
 
@@ -20,7 +15,7 @@ export async function generateZip(data: {documents: Document[], pdfAuditTrail: s
     zip.file(signedPdfName, signedPdfBase64, {base64: true})
     zip.file('AuditTrail.pdf', data.pdfAuditTrail, {base64: true});
 
-    const zipBuffer = await zip.generateAsync({type: 'blob', compression: 'DEFLATE'});
+    const zipBuffer = await zip.generateAsync({type: 'nodebuffer', compression: 'DEFLATE'});
     return zipBuffer
 
 }
