@@ -74,33 +74,16 @@ async function syncEnvelopeActivities(envelopeId: string){
 
     //first callback case - send signing link to sef lucrare and update user_status to semnat
     //if 2 requests hit at the same time, sef lucrare will receive 2 emails
-    const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').
-    update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
-    eq('namirial_envelope_id', envelopeId).
-    eq('workflow_status', 'pending_emitent').//make sure this update only happens once, when workflow_status is pending_emitent
-    //if 2 requests hit at the same time, the first one to get picked up updates workflow_status to pending_sef_lucrare
-    //the second one will already see status pending_sef_lucrare (not eq to pending_emitent), so the update will return 0 rows
-    select('cod_acces'). //and this select will return nothing, so we know that the request affected 0 rows
-    maybeSingle();
+    if(envelopeStatus.workflow_status === 'pending_emitent'){
 
-    if(updateStatusError){
-        throw new Error(`DB Error: ${updateStatusError.message}`)
-    }
+      //try to send the email first
+      const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
+      if(!sefLucrareLink){
+          throw new Error(`Viewer link not found for email: ${envelopeStatus.sef_lucrare_email}`);
+      }
 
-    //if no data was returned, the update affected 0 rows => another request already took care of this
-    if(!sefLucrareData){
-        console.log(`[syncEnvelopeActivities] Envelope ${envelopeId} already at 'semnat' stage.`);
-        return;
-    }
-
-    //only if the update affected a row we continue with sending the email
-    const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
-    if(!sefLucrareLink){
-        throw new Error(`Viewer link not found for email: ${envelopeStatus.sef_lucrare_email}`);
-    }
-
-    const { data, error } = await resend.emails.send(
-        {
+      const { data, error } = await resend.emails.send(
+      {
       from: 'Permis Electric Munca <ssm@razvanchiru.ro>',
       to: [envelopeStatus.sef_lucrare_email],
       subject: 'Semnatura permis electric de munca',
@@ -134,7 +117,7 @@ async function syncEnvelopeActivities(envelopeId: string){
 
               <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:16px 18px;margin-bottom:28px">
                 <p style="margin:0 0 6px;color:#92400E;font-size:13px;font-weight:600">CODUL DUMNEAVOASTRA DE IDENTIFICARE</p>
-                <p style="margin:0;color:#78350F;font-size:22px;font-weight:700;letter-spacing:4px;font-family:'Courier New',monospace">${sefLucrareData.cod_acces}</p>
+                <p style="margin:0;color:#78350F;font-size:22px;font-weight:700;letter-spacing:4px;font-family:'Courier New',monospace">${envelopeStatus.cod_acces}</p>
                 <p style="margin:8px 0 0;color:#92400E;font-size:12px">Vi se va solicita acest cod la pasul de semnare.</p>
               </div>
 
@@ -157,10 +140,23 @@ async function syncEnvelopeActivities(envelopeId: string){
       `
         }
       )
-    if (error) {
-      throw new Error(`Resend email failed: ${error.message}`);
-    }
+      if (error) {
+        throw new Error(`Resend email failed: ${error.message}`);
+      }
 
+      //only update after the email was sent, to also allow webhook retries for this email
+      const {error: updateStatusError} = await supabase.from('documents').
+      update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
+      eq('namirial_envelope_id', envelopeId).
+      eq('workflow_status', 'pending_emitent')//make sure this update only happens once, when workflow_status is pending_emitent
+      //if 2 requests hit at the same time, the first one to get picked up updates workflow_status to pending_sef_lucrare
+      //the second one will already see status pending_sef_lucrare (not eq to pending_emitent), so the update will return 0 rows
+
+      if(updateStatusError){
+          throw new Error(`DB Error: ${updateStatusError.message}`)
+      }
+
+    }
 }
 
 async function updateFinal(envelopeId: string, sefLucrareEmail: string){
