@@ -116,8 +116,7 @@ async function syncEnvelopeActivities(envelopeId: string){
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600;letter-spacing:0.3px">SSM Platform</h1>
-                    <p style="color:#94A3B8;margin:4px 0 0;font-size:13px">Permis electric de munca</p>
+                    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600;letter-spacing:0.3px">Permis electric de munca</h1>
                   </td>
                 </tr>
               </table>
@@ -231,8 +230,7 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600;letter-spacing:0.3px">SSM Platform</h1>
-                    <p style="color:#94A3B8;margin:4px 0 0;font-size:13px">Permis electric de munca</p>
+                    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600;letter-spacing:0.3px">Permis electric de munca</h1>
                   </td>
                 </tr>
               </table>

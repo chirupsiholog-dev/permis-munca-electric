@@ -1,0 +1,53 @@
+{
+  "emailSefLucrare": "andrei.vasile@example.com",
+  "numeSefLucrare": "Vasile",
+  "prenumeSefLucrare": "Andrei Cristian",
+  "link_expiration_date": "2026-08-05T18:00:00.000Z",
+
+  "pdfData": {
+    "data": "03.08.2026",
+    "locatia": "Statie transformare 20/0.4 kV, Hala 3, Combinat Galati",
+    "instalatia": "Linie aeriana LEA 20 kV, stalp 14-17, celula de masura CM-02",
+
+    "tipLucrare": "INTERVENTIE",
+
+    "descriere_lucrare": "Interventie de avarie pentru inlocuirea izolatorilor fisurati pe stalpii 14-17 ai LEA 20 kV, in urma descarcarilor atmosferice din 02.08.2026. Lucrare la inaltime cu nacela, in conditii de vant moderat. Se verifica si prizele de pamant ale stalpilor afectati.",
+
+    "executanti": [
+      "Marinescu Radu - electrician autorizat gr. IV, atestat lucru la inaltime"
+    ],
+
+    "riscuri": [
+      "electrocutare_ac",
+      "tensiuni_reziduale_r2",
+      "lucru_inaltime",
+      "alte"
+    ],
+
+    "masuri": [
+      "deconectare_instalatie",
+      "verificare_lipsa_tensiune",
+      "aplicare_loto",
+      "alte_foaie_manevra"
+    ],
+
+    "echipamente": [
+      "manusi_electroizolante",
+      "casca_protectie",
+      "ham",
+      "alte"
+    ],
+
+    "confirmari": [
+      "scoasa_sub_tensiune",
+      "zona_sigura"
+    ],
+
+    "ora_inceput": "06:00",
+    "ora_sfarsit": "11:30",
+
+    "observatii": "Permis emis in regim de avarie, aprobat telefonic de dispecerul de tura la 05:40. Lucrare la inaltime - nacela verificata ITP la 12.06.2026. Se intrerupe imediat la reluarea descarcarilor atmosferice.",
+
+    "inchidere_permis": []
+  }
+}

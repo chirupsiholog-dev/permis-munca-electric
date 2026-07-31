@@ -1,0 +1,67 @@
+{
+  "emailSefLucrare": "sef.lucrare@example.com",
+  "numeSefLucrare": "Popescu",
+  "prenumeSefLucrare": "Ion",
+  "link_expiration_date": "2026-08-30T23:59:59.000Z",
+
+  "pdfData": {
+    "data": "31.07.2026",
+    "locatia": "Parc fotovoltaic Galati Sud, sector B",
+    "instalatia": "Invertor central INV-04, string-uri 12-18, tablou DC TDC-04",
+
+    "tipLucrare": "mentenanta",
+
+    "descriere_lucrare": "Inlocuire sigurante fuzibile DC pe string-urile 12-18, verificare conexiuni la bornele invertorului INV-04 si remedierea izolatiei deteriorate pe traseul de cablu dintre tabloul TDC-04 si invertor. Se efectueaza masuratori de rezistenta de izolatie dupa finalizarea lucrarii.",
+
+    "executanti": [
+      "Ionescu Marius - electrician autorizat gr. IV",
+      "Dumitrescu Andrei - electrician autorizat gr. III",
+      "Stan Cristian - ajutor electrician"
+    ],
+
+    "riscuri": [
+      "electrocutare_dc",
+      "arc_electric",
+      "tensiuni_reziduale",
+      "backfeed",
+      "conditii_meteo"
+    ],
+
+    "masuri": [
+      "deconectare_instalatie",
+      "separare_vizibila",
+      "verificare_lipsa_tensiune",
+      "punere_pamant_scurtcircuit",
+      "aplicare_loto",
+      "delimitare_semnalizare",
+      "verificare_absenta_tensiune_dc",
+      "descarcare_tensiuni_reziduale_invertor"
+    ],
+
+    "echipamente": [
+      "manusi_electroizolante",
+      "casca_protectie",
+      "ochelari_protectie",
+      "incaltaminte_dielectrica",
+      "imbracaminte_ignifuga"
+    ],
+
+    "confirmari": [
+      "scoasa_sub_tensiune",
+      "masuri_securitate",
+      "zona_sigura",
+      "personal_instruit"
+    ],
+
+    "ora_inceput": "08:30",
+    "ora_sfarsit": "16:00",
+
+    "observatii": "Lucrarea se suspenda la precipitatii sau vant peste 12 m/s. Invertorul ramane blocat in LOTO pana la confirmarea scrisa a sefului de lucrare.",
+
+    "inchidere_permis": [
+      "lucrare_finalizata",
+      "zona_stare_initiala",
+      "instalatie_repusa"
+    ]
+  }
+}
