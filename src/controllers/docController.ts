@@ -77,7 +77,7 @@ export const getDocumentOnId = async (req: Request, res: Response) => {
 
 
 export const postDocument = async (req: Request, res: Response) => {
-    const { status, 
+    const {
         link_expiration_date, 
         emailSefLucrare, 
         numeSefLucrare, 
@@ -86,7 +86,7 @@ export const postDocument = async (req: Request, res: Response) => {
 
     const userId = req.user;
 
-    if (!status || !link_expiration_date) {
+    if (!emailSefLucrare || !numeSefLucrare || !prenumeSefLucrare || !link_expiration_date) {
         return res.status(400).json({
             'error': 'Input data is invalid'
         });
@@ -199,13 +199,10 @@ export const postDocument = async (req: Request, res: Response) => {
         .from('documents')
         .insert({
             'name': uniqueFileName,
-            'status': status,
             'link_expiration_date': link_expiration_date,
             'link_generat': link_generat,
             'user_id': userId,
-            'user_status': 'pending',
             'sef_lucrare_email': emailSefLucrare,
-            'sef_lucrare_status': 'pending',
             'namirial_envelope_id': envelopeId,
             'cod_acces': accessCode
         })
