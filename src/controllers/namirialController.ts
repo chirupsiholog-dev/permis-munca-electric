@@ -34,7 +34,7 @@ export const webhookHandler = async(req: Request, res: Response) => {
 
 async function syncEnvelopeActivities(envelopeId: string){
 
-    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status, sef_lucrare_email, cod_acces').eq('namirial_envelope_id', envelopeId).maybeSingle();
+    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('*').eq('namirial_envelope_id', envelopeId).maybeSingle();
     if(envelopeStatusError){
         throw new Error(`DB Error: ${envelopeStatusError.message}`)
     }
@@ -44,22 +44,30 @@ async function syncEnvelopeActivities(envelopeId: string){
     }
 
     //second callback case - go to updateFinal if:
-    //user_status is semnat - there were no tries to send an email to sef lucrare yet
-    //user_status is finalizand - there was a failed try to send the email to sef lucrare, and the webhook is retrying
-    if(envelopeStatus.user_status === 'semnat' || envelopeStatus.user_status === 'finalizand'){
-        //try to update user_status to finalizand
-        //if 2 requests hit simulatenously, only 1 will succeed, and that request is the only 1 how goes to updateFinal
-        const{data: claimData, error: claimError} = await supabase.from('documents')
-          .update({'user_status': 'finalizand'})
-          .eq('namirial_envelope_id', envelopeId)
-          .eq('user_status', 'semnat') //conditional lock - if 2 requests hit at the same time, 1 will manage the update and will update 1 row, and the other 1 will already see user_status = finalizand and will update 0 rows
-          .select('*').maybeSingle() //we use the select to see how many rows the update affected - if the update returns no data (!claimData), it means the select returns nothing because no rows were affected by the update
+    //worflow_status is pending_sef_lucrare - there were no tries to send an email to sef lucrare yet
+    //worfklow_status is processing_final_zip - there was a failed try to send the email to sef lucrare, and the webhook is retrying
+    if(envelopeStatus.workflow_status === 'pending_sef_lucrare' || envelopeStatus.workflow_status === 'processing_final_zip'){
+        //if we are not in a retry
+        if(envelopeStatus.workflow_status === 'pending_sef_lucrare'){
+          //try to update workflow_status to processing_final_zip
+          //if 2 requests hit simulatenously, only 1 will succeed, and that request is the only 1 how goes to updateFinal
+          const{data: claimData, error: claimError} = await supabase.from('documents')
+            .update({'workflow_status': 'processing_final_zip'})
+            .eq('namirial_envelope_id', envelopeId)
+            .eq('workflow_status', 'pending_sef_lucrare') //conditional lock - if 2 requests hit at the same time, 1 will manage the update and will update 1 row, and the other 1 will already see workflow_status = processing_final_zip and will update 0 rows
+            .select('*').maybeSingle() //we use the select to see how many rows the update affected - if the update returns no data (!claimData), it means the select returns nothing because no rows were affected by the update
 
-        if (claimError) throw new Error(`Claim Error: ${claimError.message}`);
-        if(!claimData){
-          console.log('[syncEnvelopeActivities] Envelope ${envelopeId} already finalizing or finalized.'); //0 rows updated case - envelope was already taken care of by another request
+          if (claimError) throw new Error(`Claim Error: ${claimError.message}`);
+          //if the update affected 0 rows, the update was already take care of by another request
+          if(!claimData){
+            console.log(`[syncEnvelopeActivities] Envelope ${envelopeId} already finalizing or finalized.`); //0 rows updated case - envelope was already taken care of by another request
+            return;
+          }
         }
-        //if the request won the lock (updated user status from semnat to finalizand), we proceed with updateFinal
+       
+        //if the request won the lock (updated workflow_status to processing_final_zip)
+        //or we are in the retry case
+        //we proceed with updateFinal
         await updateFinal(envelopeId, envelopeStatus?.sef_lucrare_email);
         return;
     }  
@@ -67,12 +75,11 @@ async function syncEnvelopeActivities(envelopeId: string){
     //first callback case - send signing link to sef lucrare and update user_status to semnat
     //if 2 requests hit at the same time, sef lucrare will receive 2 emails
     const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').
-    update({'user_status': 'semnat', 'status': 'semnat_emitent'}).
+    update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
     eq('namirial_envelope_id', envelopeId).
-    neq('user_status', 'semnat').
-    neq('user_status', 'finalizand'). //make sure this update only happens when user_status is pending
-    //if 2 requests hit at the same time, the first one to get picked up updates user_status to semnat
-    //the second one will already see status semnat, so the update will return 0 rows
+    eq('workflow_status', 'pending_emitent').//make sure this update only happens once, when workflow_status is pending_emitent
+    //if 2 requests hit at the same time, the first one to get picked up updates workflow_status to pending_sef_lucrare
+    //the second one will already see status pending_sef_lucrare (not eq to pending_emitent), so the update will return 0 rows
     select('cod_acces'). //and this select will return nothing, so we know that the request affected 0 rows
     maybeSingle();
 
@@ -246,14 +253,13 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
 
     //only update the db if the email was successfuly sent
     //if the server crashes, namirial might retry the webhook
-    //but if we update the db first, it will change user_status to finalizat before sending the email
-    //in syncEnvelopeActivities, the retry convention is to retry when user_status is finalizand, so we keep it that way until the email is finally sent
+    //but if we update the db first, it will change workflow_status to completed before sending the email
+    //in syncEnvelopeActivities, the retry convention is to retry when workflow_status is processing_final_zip, so we keep it that way until the email is finally sent
     const {error: signedUpdateError} = await supabase.from('documents').update(
         {
+            'sef_lucrare_signed_at': new Date().toISOString(),
             'link_semnat': urlData.publicUrl,
-            'sef_lucrare_status': 'semnat', 
-            'status': 'semnat',
-            'user_status': 'finalizat' //mark as complety done (from the finalizand intermediary state)
+            'workflow_status': 'completed', 
         }
     ).eq('namirial_envelope_id', envelopeId);
 
