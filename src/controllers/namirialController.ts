@@ -47,6 +47,9 @@ async function syncEnvelopeActivities(envelopeId: string){
     //worflow_status is pending_sef_lucrare - there were no tries to send an email to sef lucrare yet
     //worfklow_status is processing_final_zip - there was a failed try to send the email to sef lucrare, and the webhook is retrying
     if(envelopeStatus.workflow_status === 'pending_sef_lucrare' || envelopeStatus.workflow_status === 'processing_final_zip'){
+        if(!envelopeStatus.sef_lucrare_email){
+            throw new Error(`Missing sef_lucrare_email for envelope ${envelopeId}`);
+        }
         //if we are not in a retry
         if(envelopeStatus.workflow_status === 'pending_sef_lucrare'){
           //try to update workflow_status to processing_final_zip
@@ -68,7 +71,7 @@ async function syncEnvelopeActivities(envelopeId: string){
         //if the request won the lock (updated workflow_status to processing_final_zip)
         //or we are in the retry case
         //we proceed with updateFinal
-        await updateFinal(envelopeId, envelopeStatus?.sef_lucrare_email);
+        await updateFinal(envelopeId, envelopeStatus.sef_lucrare_email);
         return;
     }  
 
@@ -97,7 +100,7 @@ async function syncEnvelopeActivities(envelopeId: string){
       //try to send the email first
       const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
       if(!sefLucrareLink){
-          throw new Error(`Viewer link not found for email: ${envelopeStatus.sef_lucrare_email}`);
+          throw new Error(`Viewer link not found for envelope: ${envelopeId}`);
       }
 
       const { data, error } = await resend.emails.send(
@@ -167,6 +170,7 @@ async function syncEnvelopeActivities(envelopeId: string){
       const {error: updateStatusError} = await supabase.from('documents').
       update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
       eq('namirial_envelope_id', envelopeId)
+      .eq('workflow_status', 'processing_invite')
 
       if(updateStatusError){
           throw new Error(`DB Error: ${updateStatusError.message}`)
@@ -210,11 +214,11 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
         throw new Error('Failed to fetch signed doc storage URL');
     }
 
-    //send emails with signed documents - to emitent and sef lucrare
+    //send emails with signed documents
     //get zipbytes (zip buffer)
     const zipBuffer = await generateZip(data);
 
-    const { data: emailData, error } = await resend.emails.send(
+    const { error } = await resend.emails.send(
         {
       from: 'Permis Electric Munca <ssm@razvanchiru.ro>',
       to: [sefLucrareEmail],
@@ -255,7 +259,7 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
       `,
       attachments: [{
           content: zipBuffer,
-          filename: `permis_electric_munca_${envelopeId}_${sefLucrareEmail}.zip`
+          filename: `permis_electric_munca_${envelopeId}.zip`
           }]
         }
       )
