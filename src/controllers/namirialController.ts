@@ -74,7 +74,25 @@ async function syncEnvelopeActivities(envelopeId: string){
 
     //first callback case - send signing link to sef lucrare and update user_status to semnat
     //if 2 requests hit at the same time, sef lucrare will receive 2 emails
-    if(envelopeStatus.workflow_status === 'pending_emitent'){
+    //pending_emitent => first try
+    //processing invite => webhook_retry
+    if(envelopeStatus.workflow_status === 'pending_emitent' || envelopeStatus.workflow_status === 'processing_invite'){
+
+      //first try
+      if(envelopeStatus.workflow_status === 'pending_emitent'){
+        const {data: claimData, error: claimError} = await supabase.from('documents')
+          .update({'workflow_status': 'processing_invite'})
+          .eq('namirial_envelope_id', envelopeId)
+          .eq('workflow_status', 'pending_emitent').select('*').maybeSingle();
+
+        if (claimError) throw new Error(`Claim Error: ${claimError.message}`);
+
+        if(!claimData){
+          console.log(`[syncEnvelopeActivities] Envelope ${envelopeId} already processing invite.`);
+          return;
+        }
+      }
+
 
       //try to send the email first
       const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
@@ -141,16 +159,14 @@ async function syncEnvelopeActivities(envelopeId: string){
         }
       )
       if (error) {
+        //if the email fails, we throw here and the workflow_status remains processing_invite - webhook retry convention
         throw new Error(`Resend email failed: ${error.message}`);
       }
 
       //only update after the email was sent, to also allow webhook retries for this email
       const {error: updateStatusError} = await supabase.from('documents').
       update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
-      eq('namirial_envelope_id', envelopeId).
-      eq('workflow_status', 'pending_emitent')//make sure this update only happens once, when workflow_status is pending_emitent
-      //if 2 requests hit at the same time, the first one to get picked up updates workflow_status to pending_sef_lucrare
-      //the second one will already see status pending_sef_lucrare (not eq to pending_emitent), so the update will return 0 rows
+      eq('namirial_envelope_id', envelopeId)
 
       if(updateStatusError){
           throw new Error(`DB Error: ${updateStatusError.message}`)
