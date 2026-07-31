@@ -174,4 +174,6 @@ async function updateFinal(envelopeId: string){
     if(signedUpdateError){
         throw new Error("Failed to update link_semnat");
     }
+
+    //send emails with signed documents - to emitent and sef lucrare
 }

@@ -112,8 +112,8 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                                 "DocumentNumber": 1,
                                 "AllowedSignatureTypes":{DrawToSign: {
                                     "StampImprintConfiguration": {
-                                        "DisplayName": true,
-                                        "DisplaySignatureDate": true,
+                                        "DisplayName": false,
+                                        "DisplaySignatureDate": false,
                                         "DisplayIp": false,
                                         "DisplayEmail": false
                                     }

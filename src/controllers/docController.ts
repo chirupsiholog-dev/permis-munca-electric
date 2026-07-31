@@ -122,9 +122,9 @@ export const postDocument = async (req: Request, res: Response) => {
         nume: numeEmitent,
         prenume: prenumeEmitent,
         signatures: [{
-            'page': 1, 'x': 398, 'y': 426
+            'page': 1, 'x': 398, 'y': 396
         }, {
-            'page': 3, 'x': 248, 'y': 127
+            'page': 3, 'x': 248, 'y': 695
         }]
     });
 
@@ -134,11 +134,11 @@ export const postDocument = async (req: Request, res: Response) => {
         nume: numeSefLucrare,
         prenume: prenumeSefLucrare,
         signatures: [{
-            'page': 1, 'x': 398, 'y': 448
+            'page': 1, 'x': 398, 'y': 374
         }, {
-            'page': 2, 'x': 246, 'y': 446
+            'page': 2, 'x': 246, 'y': 376
         }, {
-            'page': 2, 'x': 227, 'y': 757
+            'page': 2, 'x': 227, 'y': 65
         }]
     });
 
