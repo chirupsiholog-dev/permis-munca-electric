@@ -187,7 +187,7 @@ export const postDocument = async (req: Request, res: Response) => {
 
 
     const base64 = pdfBuffer.toString('base64');
-    const callbackUrl = 'http://localhost:3000/api/namirial/webhook'; //replace with real app url
+    const callbackUrl = 'https://froth-upon-mushiness.ngrok-free.dev/api/namirial/webhook'; //replace with real app url
     const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
     
     console.log(semnatari);
