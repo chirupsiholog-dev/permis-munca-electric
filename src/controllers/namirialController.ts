@@ -34,7 +34,7 @@ export const webhookHandler = async(req: Request, res: Response) => {
 
 async function syncEnvelopeActivities(envelopeId: string){
 
-    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status, sef_lucrare_email').eq('namirial_envelope_id', envelopeId).maybeSingle();
+    const {data: envelopeStatus, error: envelopeStatusError} = await supabase.from('documents').select('user_status, sef_lucrare_email, cod_acces').eq('namirial_envelope_id', envelopeId).maybeSingle();
     if(envelopeStatusError){
         throw new Error(`DB Error: ${envelopeStatusError.message}`)
     }
@@ -43,20 +43,50 @@ async function syncEnvelopeActivities(envelopeId: string){
         throw new Error('DB returned no data for the envelope');
     }
 
-    if(envelopeStatus.user_status === 'semnat'){
+    //second callback case - go to updateFinal if:
+    //user_status is semnat - there were no tries to send an email to sef lucrare yet
+    //user_status is finalizand - there was a failed try to send the email to sef lucrare, and the webhook is retrying
+    if(envelopeStatus.user_status === 'semnat' || envelopeStatus.user_status === 'finalizand'){
+        //try to update user_status to finalizand
+        //if 2 requests hit simulatenously, only 1 will succeed, and that request is the only 1 how goes to updateFinal
+        const{data: claimData, error: claimError} = await supabase.from('documents')
+          .update({'user_status': 'finalizand'})
+          .eq('namirial_envelope_id', envelopeId)
+          .eq('user_status', 'semnat') //conditional lock - if 2 requests hit at the same time, 1 will manage the update and will update 1 row, and the other 1 will already see user_status = finalizand and will update 0 rows
+          .select('*').maybeSingle() //we use the select to see how many rows the update affected - if the update returns no data (!claimData), it means the select returns nothing because no rows were affected by the update
+
+        if (claimError) throw new Error(`Claim Error: ${claimError.message}`);
+        if(!claimData){
+          console.log('[syncEnvelopeActivities] Envelope ${envelopeId} already finalizing or finalized.'); //0 rows updated case - envelope was already taken care of by another request
+        }
+        //if the request won the lock (updated user status from semnat to finalizand), we proceed with updateFinal
         await updateFinal(envelopeId, envelopeStatus?.sef_lucrare_email);
         return;
     }  
 
-    const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').update({'user_status': 'semnat', 'status': 'semnat_emitent'}).eq('namirial_envelope_id', envelopeId).select('cod_acces').maybeSingle();
+    //first callback case - send signing link to sef lucrare and update user_status to semnat
+    //if 2 requests hit at the same time, sef lucrare will receive 2 emails
+    const {data: sefLucrareData, error: updateStatusError} = await supabase.from('documents').
+    update({'user_status': 'semnat', 'status': 'semnat_emitent'}).
+    eq('namirial_envelope_id', envelopeId).
+    neq('user_status', 'semnat').
+    neq('user_status', 'finalizand'). //make sure this update only happens when user_status is pending
+    //if 2 requests hit at the same time, the first one to get picked up updates user_status to semnat
+    //the second one will already see status semnat, so the update will return 0 rows
+    select('cod_acces'). //and this select will return nothing, so we know that the request affected 0 rows
+    maybeSingle();
+
     if(updateStatusError){
         throw new Error(`DB Error: ${updateStatusError.message}`)
     }
 
+    //if no data was returned, the update affected 0 rows => another request already took care of this
     if(!sefLucrareData){
-        throw new Error('DB returned no data for sef lucrare');
+        console.log(`[syncEnvelopeActivities] Envelope ${envelopeId} already at 'semnat' stage.`);
+        return;
     }
 
+    //only if the update affected a row we continue with sending the email
     const sefLucrareLink = (await getViewerLinks(envelopeId))[0]?.link
     if(!sefLucrareLink){
         throw new Error(`Viewer link not found for email: ${envelopeStatus.sef_lucrare_email}`);
@@ -161,18 +191,6 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
         throw new Error('Failed to fetch signed doc storage URL');
     }
 
-    const {error: signedUpdateError} = await supabase.from('documents').update(
-        {
-            'link_semnat': urlData.publicUrl,
-            'sef_lucrare_status': 'semnat', 
-            'status': 'semnat'
-        }
-    ).eq('namirial_envelope_id', envelopeId);
-
-    if(signedUpdateError){
-        throw new Error("Failed to update link_semnat");
-    }
-
     //send emails with signed documents - to emitent and sef lucrare
     //get zipbytes (zip buffer)
     const zipBuffer = await generateZip(data);
@@ -224,5 +242,22 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
       )
     if (error) {
       throw new Error(`Resend email failed: ${error.message}`);
+    }
+
+    //only update the db if the email was successfuly sent
+    //if the server crashes, namirial might retry the webhook
+    //but if we update the db first, it will change user_status to finalizat before sending the email
+    //in syncEnvelopeActivities, the retry convention is to retry when user_status is finalizand, so we keep it that way until the email is finally sent
+    const {error: signedUpdateError} = await supabase.from('documents').update(
+        {
+            'link_semnat': urlData.publicUrl,
+            'sef_lucrare_status': 'semnat', 
+            'status': 'semnat',
+            'user_status': 'finalizat' //mark as complety done (from the finalizand intermediary state)
+        }
+    ).eq('namirial_envelope_id', envelopeId);
+
+    if(signedUpdateError){
+        throw new Error("Failed to update link_semnat");
     }
 }
