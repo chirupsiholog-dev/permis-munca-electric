@@ -10,13 +10,17 @@ export async function generateZip(data: {documents: Document[], pdfAuditTrail: s
 
     const zip = new JSZip();
 
-    const signedPdfBase64 = data.documents[0]?.base64!;
-    const signedPdfName = data.documents[0]?.fileName!;
+    const document = data.documents[0];
+
+    if(!document?.fileName || !document.base64)
+        throw new Error("A document with a file name and base64 content is required");
+    const signedPdfName = document.fileName;
+    const signedPdfBase64 = document.base64;
 
     zip.file(signedPdfName, signedPdfBase64, {base64: true})
     zip.file('AuditTrail.pdf', data.pdfAuditTrail, {base64: true});
 
-    const savedZip = await zip.generateAsync({type: 'blob'});
-    return savedZip
-    
+    const zipBuffer = await zip.generateAsync({type: 'blob', compression: 'DEFLATE'});
+    return zipBuffer
+
 }
