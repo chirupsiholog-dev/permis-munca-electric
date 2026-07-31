@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import fs from 'fs'; //for accessing the test pdf
 import path from 'path';
 import crypto from 'crypto';
-import { createEnvelope, type Semnatar } from "../lib/namirial.js";
+import { createEnvelope, type Semnatar, getViewerLinks } from "../lib/namirial.js";
 
 export const getAllDocuments = async (req: Request, res: Response) => {
 
@@ -194,6 +194,11 @@ export const postDocument = async (req: Request, res: Response) => {
     
     try {
         const envelopeId = await createEnvelope(base64, semnatari, accessCode, callbackUrl, uniqueFileName);
+        const viewerLinks = await getViewerLinks(envelopeId);
+        if(!viewerLinks || !viewerLinks[0])
+            throw new Error ('Failed to obtain emitent signing link');
+
+        const emitentSigningLink = viewerLinks[0].link;
 
         const { data, error } = await supabase
         .from('documents')
@@ -204,7 +209,8 @@ export const postDocument = async (req: Request, res: Response) => {
             'user_id': userId,
             'sef_lucrare_email': emailSefLucrare,
             'namirial_envelope_id': envelopeId,
-            'cod_acces': accessCode
+            'cod_acces': accessCode,
+            'emitent_signing_link': emitentSigningLink
         })
         .select('*')
         .single();

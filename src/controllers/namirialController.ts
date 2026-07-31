@@ -168,7 +168,7 @@ async function syncEnvelopeActivities(envelopeId: string){
 
       //only update after the email was sent, to also allow webhook retries for this email
       const {error: updateStatusError} = await supabase.from('documents').
-      update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString()}).
+      update({'workflow_status': 'pending_sef_lucrare', 'emitent_signed_at': new Date().toISOString(), 'sef_lucrare_signing_link': sefLucrareLink}).
       eq('namirial_envelope_id', envelopeId)
       .eq('workflow_status', 'processing_invite')
 
