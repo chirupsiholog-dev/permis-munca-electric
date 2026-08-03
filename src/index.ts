@@ -4,10 +4,14 @@ import authRoutes from './router/authRoutes.js'
 import docRoutes from './router/docRoutes.js'
 import namirialRoutes from './router/namirialRoutes.js';
 import { openapiSpec } from './docs/openapi.js';
+import cors from 'cors'
 
 const app = express();
-app.use(express.json()); //middleware for parsing json
+app.use(express.json()); //middleware for parsing incoming json
 app.use(express.urlencoded({ extended: true }));
+
+//enabling cors so react can talk to the server
+app.use(cors());
 
 
 const swaggerCss = `
