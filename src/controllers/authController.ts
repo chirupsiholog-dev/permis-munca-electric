@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'
 import { redis } from '../lib/redisClient.js';
 import crypto from 'node:crypto'
+import { error } from 'node:console';
 
 
 const secretKey = process.env.JWT_SECRET;
@@ -116,5 +117,21 @@ export const signup = async(req: Request, res: Response) => {
         console.error('Catch block error:', err.message);
         return res.status(500).json({ error: 'An unexpected error occurred' });
     }
+
+}
+
+export const me = async (req: Request, res: Response) => {
+
+    const userId = req.user;
+    const {data: userData, error: userError} = await supabase.from('users').select('id, email, username').eq('id', userId).maybeSingle();
+    if(userError){
+        return res.status(500).json({error: 'Internal server error'})
+    }
+
+    if(!userData){
+        return res.status(401).json({error: 'User not found'});
+    }
+
+    return res.status(200).json({success: true, 'data': userData})
 
 }
