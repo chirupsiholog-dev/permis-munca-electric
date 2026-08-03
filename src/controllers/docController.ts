@@ -22,7 +22,7 @@ export const getAllDocuments = async (req: Request, res: Response) => {
         });
     }
 
-    if (!data || data.length === 0) {
+    if (!data) {
         return res.status(404).json({
             error: 'No documents found'
         });
