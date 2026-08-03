@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabaseClient.js';
 import fs from 'fs'; //for accessing the test pdf
 import path from 'path';
 import crypto from 'crypto';
-import { createEnvelope, type Semnatar, getViewerLinks } from "../lib/namirial.js";
-import { fillPdf } from "../lib/utils.js";
+import { createEnvelope, type Semnatar, getViewerLinks, downloadSigned } from "../lib/namirial.js";
+import { fillPdf, generateZip } from "../lib/utils.js";
 
 export const getAllDocuments = async (req: Request, res: Response) => {
 
@@ -245,5 +245,68 @@ export const postDocument = async (req: Request, res: Response) => {
 
     }catch(err: any){
         return res.status(500).json({error: err.message});
+    }
+}
+
+export const documentsStats = async(req: Request, res: Response)=>{
+
+    const userId = req.user;
+    const {data: docData, error: docError} = await supabase.from('documents').select('workflow_status')
+        .eq('user_id', userId);
+    
+    if(docError){
+        return res.status(500).json({error: 'Internal server error'});
+    }
+
+    let total: number = 0;
+    let completed: number = 0;
+    let sefLucrareSignNeeded = 0;
+    let emitentSignNeeded = 0;
+
+    if(docData.length > 0){
+        total = docData.length;
+        completed = docData.filter(d => d.workflow_status === 'completed' || d.workflow_status === 'processing_final_zip').length;
+        sefLucrareSignNeeded = docData.filter(d => d.workflow_status === 'pending_sef_lucrare' || d.workflow_status === 'processing_invite').length;
+        emitentSignNeeded = docData.filter(d => d.workflow_status === 'pending_emitent').length;
+    }
+
+    return res.status(200).json({success: true, stats: {total, completed, sefLucrareSignNeeded, emitentSignNeeded}})
+}
+
+export const downloadDocument = async(req: Request, res: Response)=>{
+
+    const userId = req.user;
+
+    const docId = req.params.id as string | undefined;
+
+    if(!docId){
+        return res.status(400).json({error: 'Missing document ID'})
+    }
+
+    const{data: docData, error: docError} = await supabase.from('documents').select('namirial_envelope_id')
+                            .eq('user_id', userId)
+                            .not('link_semnat', 'is', null)
+                            .eq('id', docId)
+                            .eq('workflow_status', 'completed').maybeSingle();
+
+    if(docError){
+        return res.status(500).json({error: 'Internal server error'});
+    }
+
+    if(!docData){
+        return res.status(404).json({error: 'Document not found'});
+    }
+
+    try{
+        const documents = await downloadSigned(docData.namirial_envelope_id);
+        const zipBuffer = await generateZip(documents);
+
+        res.setHeader('Content-Disposition', `attachment; filename="permis_electric_munca_${docId}.zip"`)
+        res.setHeader('Content-Type', 'application/zip');
+
+        return res.send(zipBuffer);
+    }catch(err: any){
+        console.log(`Error downloading envelope: ${err.message}`)
+        return res.status(500).json({error: 'Failed to download document'})
     }
 }
