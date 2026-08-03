@@ -298,3 +298,40 @@ async function updateFinal(envelopeId: string, sefLucrareEmail: string){
         throw new Error("Failed to update link_semnat");
     }
 }
+
+export const downloadEnvelope = async(req: Request, res: Response)=>{
+
+  const userId = req.user;
+
+  const envelopeId  = req.params.id as string | undefined;
+  if(!envelopeId){
+    return res.status(400).json({error: 'Missing envelope ID'})
+  }
+
+  const{data: docData, error: docError} = await supabase.from('documents').select('*')
+                            .eq('user_id', userId)
+                            .not('link_semnat', 'is', null)
+                            .eq('namirial_envelope_id', envelopeId)
+                            .eq('workflow_status', 'completed').maybeSingle();
+  if(docError){
+    return res.status(500).json({error: 'Internal server error'});
+  }
+
+  if(!docData){
+    return res.status(404).json({error: 'Document not found'});
+  }
+
+  try{
+    const documents = await downloadSigned(envelopeId);
+
+    const zipBuffer = await generateZip(documents);
+
+    res.setHeader('Content-Disposition', `attachment; filename="permis_electric_munca_${envelopeId}.zip"`);
+    res.setHeader('Content-Type', 'application/zip')
+    return res.send(zipBuffer);
+
+  }catch(err: any){
+    console.log(`Error downloading envelope: ${err.message}`)
+    return res.status(500).json({error: 'Failed to download document'})
+  }
+}
