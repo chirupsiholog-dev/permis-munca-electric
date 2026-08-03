@@ -195,7 +195,13 @@ export const postDocument = async (req: Request, res: Response) => {
 
 
         const base64 = pdfBuffer.toString('base64');
-        const callbackUrl = 'https://froth-upon-mushiness.ngrok-free.dev/api/namirial/webhook'; //replace with real app url
+        const appUrl = process.env.APP_URL;
+        if(!appUrl){
+            console.log('[namirial envelope] missing app url')
+            throw new Error('[namirial webhook] missing app url');
+        }
+        const webhookSecret = process.env.WEBHOOK_SECRET;
+        const callbackUrl = `${appUrl}/api/namirial/webhook/${webhookSecret}`;
         const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
         
         console.log(semnatari);

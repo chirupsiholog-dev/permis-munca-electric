@@ -11,11 +11,28 @@ if(!resendKey){
 }
 const resend = new Resend(resendKey);
 
+const webhookSecret = process.env.WEBHOOK_SECRET;
+if(!webhookSecret){
+  console.log('[namirial webhook] Missing webhook secret');
+  throw new Error('[namirial webhook] Missing webhook secret')
+}
+
 export const webhookHandler = async(req: Request, res: Response) => {
 
     try{
         const envelopeId = req.query.envelope as string | undefined
         const action = req.query.action as string | undefined;
+
+        const secret = req.params.secret as string | undefined
+
+        if(!secret){
+          return res.status(403).json({error: 'Authenticate and retry'});
+        }
+
+        if(secret !== webhookSecret){
+          return res.status(403).json({error: 'Authenticate and retry'});
+        }
+        
 
         if(!envelopeId){
             return res.status(400).json({ error: 'Missing envelope ID' })
