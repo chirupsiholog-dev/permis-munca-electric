@@ -32,13 +32,17 @@ export interface PdfData{
     sef_lucrare_nume: string,
     executanti: string[],
     riscuri: string[],
+    risc_alte_text: string,
     masuri: string[],
     echipamente: string[],
+    eip_alte_text: string
     confirmari: string[],
     ora_inceput: string,
     ora_sfarsit: string,
     observatii: string,
-    inchidere_permis: string[]
+    inchidere_permis: string[],
+    inchidere_data_an: string,
+    inchidere_ora: string
 }
 
 export async function fillPdf(data: PdfData, filePath: string){
@@ -57,9 +61,13 @@ export async function fillPdf(data: PdfData, filePath: string){
             'instalatia', 
             'descriere_lucrare', 
             'sef_lucrare_nume',
+            'risc_alte_text',
+            'eip_alte_text',
             'ora_inceput',
             'ora_sfarsit',
-            'observatii'
+            'observatii',
+            'inchidere_data_an',
+            'inchidere_ora'
         ];   
     for(const textField of textFields){
         const field = form.getTextField(textField);

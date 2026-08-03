@@ -24,6 +24,8 @@
       "alte"
     ],
 
+    "risc_alte_text": "Alte riscuri",
+
     "masuri": [
       "deconectare_instalatie",
       "verificare_lipsa_tensiune",
@@ -38,6 +40,8 @@
       "alte"
     ],
 
+    "eip_alte_text": "Alte eip",
+
     "confirmari": [
       "scoasa_sub_tensiune",
       "zona_sigura"
@@ -48,6 +52,9 @@
 
     "observatii": "Permis emis in regim de avarie, aprobat telefonic de dispecerul de tura la 05:40. Lucrare la inaltime - nacela verificata ITP la 12.06.2026. Se intrerupe imediat la reluarea descarcarilor atmosferice.",
 
-    "inchidere_permis": []
+    "inchidere_permis": [],
+
+    "inchidere_data": "27/04/2026",
+    "inchidere_ora": "18:00"
   }
 }
