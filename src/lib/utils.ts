@@ -27,6 +27,7 @@ export interface PdfData{
     locatia: string,
     instalatia: string,
     tipLucrare: string,
+    tip_lucrare_altul_text: string
     descriere_lucrare: string,
     emitent_permis_nume: string
     sef_lucrare_nume: string,
@@ -58,7 +59,8 @@ export async function fillPdf(data: PdfData, filePath: string){
             'data', 
             'emitent_permis_nume',
             'locatia', 
-            'instalatia', 
+            'instalatia',
+            'tip_lucrare_altul_text',
             'descriere_lucrare', 
             'sef_lucrare_nume',
             'risc_alte_text',
