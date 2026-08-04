@@ -51,6 +51,10 @@ export default function ArchiveRow({ permit, emitentNume, onOpen, onDownload }) 
         <StatusDot size="sm" tone={sef.tone} label={sef.label} />
       </span>
 
+      <span className="font-mono text-cta tracking-[0.1em] text-ink-700">
+        {permit.codAcces || '—'}
+      </span>
+
       <span className="flex items-center gap-2.5 justify-self-end">
         <button
           type="button"

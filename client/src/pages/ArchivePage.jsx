@@ -5,14 +5,13 @@ import PageHeading from '../components/ui/PageHeading.jsx'
 import SegmentedControl from '../components/ui/SegmentedControl.jsx'
 import ArchiveTable from '../features/archive/ArchiveTable.jsx'
 import { FILTERS, useArchiveFilters } from '../features/archive/useArchiveFilters.js'
-import { PERMITS } from '../lib/placeholderData.js'
 import { useEffect, useState } from 'react'
-import {toRomanianDate} from '../lib/text.js'
 
 export default function ArchivePage() {
   const { profile } = useOutletContext()
   // TODO(backend): replace PERMITS with the permits fetched for this user.
   const [ permits, setPermits ] = useState([])
+  const [ loading, setLoading ] = useState(true)
 
   const { filter, setFilter, query, setQuery, rows } = useArchiveFilters(permits)
 
@@ -45,11 +44,13 @@ export default function ArchivePage() {
           sef: row.sef_lucrare_email,
           emitentSemnat: row.emitent_signed_at ? true : false,
           sefSemnat: row.sef_lucrare_signed_at ? true : false,
+          codAcces: row.cod_acces
         });
       }
       setPermits(rows);
     }) //save json array to state
     .catch((err) => console.error(err))
+    .finally(() => setLoading(false))
   }, [])
 
 
@@ -82,6 +83,7 @@ export default function ArchivePage() {
         <ArchiveTable
           rows={rows}
           total={permits.length}
+          loading={loading}
           emitentNume={profile.numeAfisat}
           // TODO(backend): wire these to your detail route / download endpoint.
           onOpen={() => {}}
