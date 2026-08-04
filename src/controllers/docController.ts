@@ -231,7 +231,7 @@ export const postDocument = async (req: Request, res: Response) => {
 
             if (error) {
                 return res.status(400).json({
-                'error': error
+                'error': error.message
                 });
             }
 

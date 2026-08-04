@@ -15,7 +15,18 @@ import Textarea from '../components/ui/Textarea.jsx'
 import ExecutantRow from '../features/permit/ExecutantRow.jsx'
 import SubmitBar from '../features/permit/SubmitBar.jsx'
 import { usePermitForm } from '../features/permit/usePermitForm.js'
-import { CONFIRMARI, EIP, MASURI, RISCURI, TIPURI_LUCRARE } from '../lib/constants.js'
+import {
+  CONFIRMARI,
+  EIP,
+  EIP_ALTE,
+  INCHIDERE,
+  MASURI,
+  MASURI_ALTE,
+  RISCURI,
+  RISC_ALTE,
+  TIPURI_LUCRARE,
+} from '../lib/constants.js'
+import {toRomanianDate, stripDiacritics} from '../lib/text.js'
 
 /** Collapsible "Alte ..." free-text input that appears when its box is ticked. */
 function RevealInput({ show, ...props }) {
@@ -61,20 +72,64 @@ export default function PermitFormPage() {
     timer.current = setTimeout(() => setToast(''), 2600)
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!completeness.isComplete) {
       flash('Completează toate secțiunile obligatorii înainte de trimitere.')
       return
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // TODO(backend): POST `values` to your permit endpoint here.
-    // `values` is already the exact payload shape — nothing to reshape.
-    // ─────────────────────────────────────────────────────────────────────
-    flash(`Permis trimis spre semnare către ${values.sefLucrare}.`)
+    let payload = {};
+    payload.emailSefLucrare = values.sefEmail;
+    // Stripped because the controller concatenates these into `sef_lucrare_nume`,
+    // which is written to three PDF text fields. Side effect: this is also the
+    // name Namirial shows the signer and the name used in the stored filename.
+    payload.numeSefLucrare = stripDiacritics(values.sefNume);
+    payload.prenumeSefLucrare = stripDiacritics(values.sefPrenume);
+    payload.link_expiration_date = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
+    payload.pdfData = {
+      data: toRomanianDate(values.data),
+      locatia: stripDiacritics(values.locatie),
+      instalatia: stripDiacritics(values.instalatie),
+      tipLucrare: stripDiacritics(values.tip),
+      tip_lucrare_altul_text: values.tip.includes('altul')?stripDiacritics(values.tipAltulText):'',
+      descriere_lucrare: stripDiacritics(values.descriere),
+      executanti: values.executanti.map(e => stripDiacritics(e)).filter(Boolean).slice(0, 3),
+      riscuri: values.riscuri,
+      risc_alte_text: values.riscuri.includes('alte')?stripDiacritics(values.riscAlteText):'',
+      masuri: values.masuri,
+      echipamente: values.echipamente,
+      eip_alte_text: values.echipamente.includes('alte')?stripDiacritics(values.eipAlteText):'',
+      confirmari: values.confirmari,
+      ora_inceput: values.oraStart,
+      ora_sfarsit: values.oraEnd,
+      observatii: stripDiacritics(values.observatii),
+      inchidere_permis: values.inchidere,
+      inchidere_data_an: toRomanianDate(values.inchidereData),
+      inchidere_ora: values.inchidereOra
+    };
+
+    const jwt = localStorage.getItem('token');
+
+    try{
+      const res = await fetch(`/api/documents/new`, 
+      {method: 'POST', body: JSON.stringify(payload), headers: {
+        Authorization: `Bearer ${jwt}`,
+        'Content-Type': 'Application/json'
+      }})
+      
+      const data = await res.json();
+      if(data.success)
+        flash(`Permis trimis spre semnare către ${values.sefEmail}.`)
+      else
+        flash(data.error)
+      
+    }catch(error){
+      flash('Something failed');
+    }
+
   }
 
-  const tipOptions = TIPURI_LUCRARE.map((t) => ({ value: t, label: t }))
+  const tipOptions = TIPURI_LUCRARE.map((t) => ({ value: t.slug, label: t.label }))
 
   return (
     <PageTransition>
@@ -123,12 +178,12 @@ export default function PermitFormPage() {
               onChange={(v) => setValue('tip', v)}
             />
             <RevealInput
-              show={values.tip === 'Altul'}
+              show={values.tip === 'altul'}
               type="text"
               placeholder="Descrie tipul lucrării"
               aria-label="Descrie tipul lucrării"
-              value={values.tipAltul}
-              onChange={setField('tipAltul')}
+              value={values.tipAltulText}
+              onChange={setField('tipAltulText')}
             />
           </div>
         </SectionCard>
@@ -146,13 +201,34 @@ export default function PermitFormPage() {
 
         {/* 3 ─ Personal ----------------------------------------------------- */}
         <SectionCard index={3} title="Personal implicat">
+          {/* Three fields, not one: the backend needs the email to send the
+              signing link, and nume/prenume separately for the stored filename. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField
+              id="f-sef-nume"
+              label="Șef de lucrare — nume"
+              type="text"
+              placeholder="ex. Ducica"
+              value={values.sefNume}
+              onChange={setField('sefNume')}
+            />
+            <TextField
+              id="f-sef-prenume"
+              label="Șef de lucrare — prenume"
+              type="text"
+              placeholder="ex. Ștefan"
+              value={values.sefPrenume}
+              onChange={setField('sefPrenume')}
+            />
+          </div>
+
           <TextField
-            id="f-sef"
-            label="Șef de lucrare"
-            type="text"
-            placeholder="Nume și prenume"
-            value={values.sefLucrare}
-            onChange={setField('sefLucrare')}
+            id="f-sef-email"
+            label="Email șef de lucrare"
+            type="email"
+            placeholder="nume@companie.ro"
+            value={values.sefEmail}
+            onChange={setField('sefEmail')}
           />
 
           <div className="flex flex-col gap-[9px]">
@@ -180,58 +256,53 @@ export default function PermitFormPage() {
 
         {/* 4 ─ Riscuri ------------------------------------------------------ */}
         <SectionCard index={4} title="Identificarea riscurilor">
-          <CheckboxGrid items={RISCURI} values={values.riscuri} onToggle={toggleIn('riscuri')} />
+          <CheckboxGrid items={RISCURI} selected={values.riscuri} onToggle={toggleIn('riscuri')} />
 
           <div className="flex flex-col gap-[11px]">
+            {/* "Alte" is just another slug in the same array. */}
             <Checkbox
               label="Alte riscuri"
-              checked={values.alteRiscuriOn}
-              onChange={(e) => {
-                setValue('alteRiscuriOn', e.target.checked)
-                if (!e.target.checked) setValue('alteRiscuri', '')
-              }}
+              checked={values.riscuri.includes(RISC_ALTE)}
+              onChange={() => toggleIn('riscuri')(RISC_ALTE)}
             />
             <RevealInput
-              show={values.alteRiscuriOn}
+              show={values.riscuri.includes(RISC_ALTE)}
               type="text"
               placeholder="Descrie riscurile suplimentare"
               aria-label="Alte riscuri"
-              value={values.alteRiscuri}
-              onChange={setField('alteRiscuri')}
+              value={values.riscAlteText}
+              onChange={setField('riscAlteText')}
             />
           </div>
         </SectionCard>
 
         {/* 5 ─ Măsuri ------------------------------------------------------- */}
         <SectionCard index={5} title="Măsuri de securitate aplicate">
-          <CheckboxGrid items={MASURI} values={values.masuri} onToggle={toggleIn('masuri')} />
+          <CheckboxGrid items={MASURI} selected={values.masuri} onToggle={toggleIn('masuri')} />
           <Checkbox
             label="Alte măsuri: se va respecta foaia de manevră"
-            checked={values.alteMasuriOn}
-            onChange={(e) => setValue('alteMasuriOn', e.target.checked)}
+            checked={values.masuri.includes(MASURI_ALTE)}
+            onChange={() => toggleIn('masuri')(MASURI_ALTE)}
           />
         </SectionCard>
 
         {/* 6 ─ EIP ---------------------------------------------------------- */}
         <SectionCard index={6} title="Echipament individual de protecție">
-          <CheckboxGrid items={EIP} values={values.eip} onToggle={toggleIn('eip')} />
+          <CheckboxGrid items={EIP} selected={values.echipamente} onToggle={toggleIn('echipamente')} />
 
           <div className="flex flex-col gap-[11px]">
             <Checkbox
               label="Alte EIP"
-              checked={values.alteEipOn}
-              onChange={(e) => {
-                setValue('alteEipOn', e.target.checked)
-                if (!e.target.checked) setValue('alteEip', '')
-              }}
+              checked={values.echipamente.includes(EIP_ALTE)}
+              onChange={() => toggleIn('echipamente')(EIP_ALTE)}
             />
             <RevealInput
-              show={values.alteEipOn}
+              show={values.echipamente.includes(EIP_ALTE)}
               type="text"
               placeholder="Descrie echipamentul suplimentar"
               aria-label="Alte EIP"
-              value={values.alteEip}
-              onChange={setField('alteEip')}
+              value={values.eipAlteText}
+              onChange={setField('eipAlteText')}
             />
           </div>
         </SectionCard>
@@ -240,7 +311,7 @@ export default function PermitFormPage() {
         <SectionCard index={7} title="Confirmări înainte de începerea lucrării">
           <CheckboxGrid
             items={CONFIRMARI}
-            values={values.confirmari}
+            selected={values.confirmari}
             onToggle={toggleIn('confirmari')}
             columns={1}
           />
@@ -276,6 +347,39 @@ export default function PermitFormPage() {
             value={values.observatii}
             onChange={setField('observatii')}
           />
+        </SectionCard>
+
+        {/* 10 ─ Închidere ---------------------------------------------------- */}
+        <SectionCard index={10} title="Închiderea permisului">
+          <Alert tone="warn">
+            Aceste câmpuri se completează o singură dată, la emiterea permisului. Documentul PDF
+            este blocat imediat după generare, deci ce nu este bifat aici rămâne necompletat
+            definitiv.
+          </Alert>
+
+          <CheckboxGrid
+            items={INCHIDERE}
+            selected={values.inchidere}
+            onToggle={toggleIn('inchidere')}
+            columns={1}
+          />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField
+              id="f-inchidere-data"
+              label="Data închiderii"
+              type="date"
+              value={values.inchidereData}
+              onChange={setField('inchidereData')}
+            />
+            <TextField
+              id="f-inchidere-ora"
+              label="Ora închiderii"
+              type="time"
+              value={values.inchidereOra}
+              onChange={setField('inchidereOra')}
+            />
+          </div>
         </SectionCard>
       </main>
 
