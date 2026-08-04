@@ -6,21 +6,31 @@ import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
-import { permitStats } from '../lib/placeholderData.js'
+import { useEffect, useState } from 'react'
+
 
 export default function HomePage() {
-  const { user } = useOutletContext()
-  // TODO(backend): replace with counts from your API.
-  const stats = permitStats()
+
+  const { profile } = useOutletContext()
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const jwt = localStorage.getItem('token');
+    fetch('/api/documents/stats', {method: 'GET', headers: {
+      Authorization: `Bearer ${jwt}`
+    }})
+    .then(r => r.json()).then(d => {if(d.stats){setStats(d.stats)}})
+      .catch((err) => {return;})
+  }, [])
 
   const tiles = [
-    { label: 'Necesită semnătura ta', value: stats.necesitaSemnatura, rule: 'border-l-warn', tone: 'text-warn-text' },
-    { label: 'În așteptarea altora', value: stats.inAsteptareaAltora, rule: 'border-l-brand', tone: 'text-brand-text' },
-    { label: 'Complet', value: stats.complet, rule: 'border-l-ink', tone: 'text-ink' },
-    { label: 'Total emise', value: stats.total, rule: 'border-l-ink-200', tone: 'text-ink-500' },
+    { label: 'Necesită semnătura ta', value: stats?.emitentSignNeeded ?? '-', rule: 'border-l-warn', tone: 'text-warn-text' },
+    { label: 'În așteptarea altora', value: stats?.sefLucrareSignNeeded ?? '-', rule: 'border-l-brand', tone: 'text-brand-text' },
+    { label: 'Complet', value: stats?.completed ?? '-', rule: 'border-l-ink', tone: 'text-ink' },
+    { label: 'Total emise', value: stats?.total ?? '-', rule: 'border-l-ink-200', tone: 'text-ink-500' },
   ]
 
-  const prenume = user.nume.split(' ')[0]
+  const prenume = profile.prenume;
 
   return (
     <PageTransition>
