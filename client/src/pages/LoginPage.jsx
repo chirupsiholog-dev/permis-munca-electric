@@ -54,7 +54,7 @@ export default function LoginPage() {
         })
       })
 
-      const data = await response.json;
+      const data = await response.json();
 
       //handle server-side errors
       if (!response.ok) {
