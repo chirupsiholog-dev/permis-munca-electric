@@ -5,6 +5,8 @@
 const tones = {
   signed: { dot: 'bg-brand', text: 'text-brand-text' },
   pending: { dot: 'bg-warn', text: 'text-warn-text' },
+  // Terminal state — matches the black "Complet" tile on the home screen.
+  done: { dot: 'bg-ink', text: 'text-ink' },
 }
 
 export default function StatusDot({ tone = 'pending', label, size = 'md' }) {

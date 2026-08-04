@@ -4,9 +4,11 @@ import StatusDot from '../../components/ui/StatusDot.jsx'
 import { GRID } from './archiveGrid.js'
 import { stareKey } from './useArchiveFilters.js'
 
+/** Tones match the home-screen tiles: amber = your move, brand = someone else's. */
 const STARI = {
-  complet: { label: 'Complet', tone: 'signed' },
-  in_asteptare: { label: 'În așteptare', tone: 'pending' },
+  semnatura_ta: { label: 'Semnătura ta', tone: 'pending' },
+  asteapta_altii: { label: 'Așteaptă alții', tone: 'signed' },
+  complet: { label: 'Complet', tone: 'done' },
 }
 
 const semnatura = (signed) =>

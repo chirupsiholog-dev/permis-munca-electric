@@ -24,11 +24,13 @@ export default function HomePage() {
       .catch((err) => {return;})
   }, [])
 
+  // `to` matches the `stare` values in useArchiveFilters — "Total emise" carries
+  // no param, which the archive reads as "Toate".
   const tiles = [
-    { label: 'Necesită semnătura ta', value: stats?.emitentSignNeeded ?? '-', rule: 'border-l-warn', tone: 'text-warn-text' },
-    { label: 'În așteptarea altora', value: stats?.sefLucrareSignNeeded ?? '-', rule: 'border-l-brand', tone: 'text-brand-text' },
-    { label: 'Complet', value: stats?.completed ?? '-', rule: 'border-l-ink', tone: 'text-ink' },
-    { label: 'Total emise', value: stats?.total ?? '-', rule: 'border-l-ink-200', tone: 'text-ink-500' },
+    { label: 'Necesită semnătura ta', value: stats?.emitentSignNeeded ?? '-', to: '/arhiva?stare=semnatura_ta', rule: 'border-l-warn', tone: 'text-warn-text' },
+    { label: 'În așteptarea altora', value: stats?.sefLucrareSignNeeded ?? '-', to: '/arhiva?stare=asteapta_altii', rule: 'border-l-brand', tone: 'text-brand-text' },
+    { label: 'Complet', value: stats?.completed ?? '-', to: '/arhiva?stare=complet', rule: 'border-l-ink', tone: 'text-ink' },
+    { label: 'Total emise', value: stats?.total ?? '-', to: '/arhiva', rule: 'border-l-ink-200', tone: 'text-ink-500' },
   ]
 
   const prenume = profile.prenume;
@@ -66,7 +68,7 @@ export default function HomePage() {
                 transition={{ duration: 0.28, delay: 0.06 + i * 0.05, ease: 'easeOut' }}
               >
                 <Link
-                  to="/arhiva"
+                  to={tile.to}
                   className={`flex items-center gap-3.5 border border-line ${tile.rule} border-l-[3px] bg-surface px-4 py-3.5 no-underline transition-colors duration-150 hover:bg-surface-alt`}
                 >
                   {stats ? (
