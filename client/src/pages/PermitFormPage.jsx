@@ -62,7 +62,11 @@ export default function PermitFormPage() {
   } = usePermitForm()
 
   const [toast, setToast] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [sent, setSent] = useState(false)
   const timer = useRef(null)
+
+  const inFlight = useRef(false)
 
   useEffect(() => () => clearTimeout(timer.current), [])
 
@@ -73,6 +77,9 @@ export default function PermitFormPage() {
   }
 
   async function handleSubmit() {
+
+    if (inFlight.current || sent) return
+
     if (!completeness.isComplete) {
       flash('Completează toate secțiunile obligatorii înainte de trimitere.')
       return
@@ -80,9 +87,7 @@ export default function PermitFormPage() {
 
     let payload = {};
     payload.emailSefLucrare = values.sefEmail;
-    // Stripped because the controller concatenates these into `sef_lucrare_nume`,
-    // which is written to three PDF text fields. Side effect: this is also the
-    // name Namirial shows the signer and the name used in the stored filename.
+
     payload.numeSefLucrare = stripDiacritics(values.sefNume);
     payload.prenumeSefLucrare = stripDiacritics(values.sefPrenume);
     payload.link_expiration_date = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString();
@@ -110,21 +115,29 @@ export default function PermitFormPage() {
 
     const jwt = localStorage.getItem('token');
 
+    inFlight.current = true
+    setSubmitting(true)
+
     try{
-      const res = await fetch(`/api/documents/new`, 
+      const res = await fetch(`/api/documents/new`,
       {method: 'POST', body: JSON.stringify(payload), headers: {
         Authorization: `Bearer ${jwt}`,
         'Content-Type': 'Application/json'
       }})
-      
+
       const data = await res.json();
-      if(data.success)
+      if(data.success){
+        setSent(true)
         flash(`Permis trimis spre semnare către ${values.sefEmail}.`)
+      }
       else
         flash(data.error)
-      
+
     }catch(error){
       flash('Something failed');
+    }finally{
+      inFlight.current = false
+      setSubmitting(false)
     }
 
   }
@@ -383,7 +396,7 @@ export default function PermitFormPage() {
         </SectionCard>
       </main>
 
-      <SubmitBar toast={toast} onSubmit={handleSubmit} />
+      <SubmitBar toast={toast} loading={submitting} done={sent} onSubmit={handleSubmit} />
     </PageTransition>
   )
 }
