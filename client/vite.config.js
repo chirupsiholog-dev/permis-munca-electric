@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       // so you never deal with CORS locally. Nothing here touches the backend.
       proxy: {
         '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3000',
+          target: env.VITE_API_URL || 'http://localhost:3030',
           changeOrigin: true,
         },
       },
