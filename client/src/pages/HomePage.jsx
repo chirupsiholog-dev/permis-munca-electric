@@ -6,6 +6,7 @@ import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
+import Skeleton from '../components/ui/Skeleton.jsx'
 import { useEffect, useState } from 'react'
 
 
@@ -68,9 +69,15 @@ export default function HomePage() {
                   to="/arhiva"
                   className={`flex items-center gap-3.5 border border-line ${tile.rule} border-l-[3px] bg-surface px-4 py-3.5 no-underline transition-colors duration-150 hover:bg-surface-alt`}
                 >
-                  <span className={`min-w-[26px] text-stat font-medium leading-none ${tile.tone}`}>
-                    {tile.value}
-                  </span>
+                  {stats ? (
+                    <span className={`min-w-[26px] text-stat font-medium leading-none ${tile.tone}`}>
+                      {tile.value}
+                    </span>
+                  ) : (
+                    // Sized to the digit it replaces, so the row doesn't shift
+                    // when the real count lands.
+                    <Skeleton className="h-[22px] w-[26px] min-w-[26px]" />
+                  )}
                   <span className="text-body-sm text-ink-700">{tile.label}</span>
                 </Link>
               </motion.div>
