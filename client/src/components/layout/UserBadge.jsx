@@ -4,7 +4,7 @@ export default function UserBadge({ user }) {
       <div className="flex h-[30px] w-[30px] items-center justify-center bg-ink text-nav font-bold tracking-[0.06em] text-white">
         {user.initiale}
       </div>
-      <span className="hidden text-cta text-ink-600 sm:block">{user.nume}</span>
+      <span className="hidden text-cta text-ink-600 sm:block">{`${user.nume} ${user.prenume}`}</span>
     </div>
   )
 }

@@ -6,21 +6,34 @@ import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
-import { permitStats } from '../lib/placeholderData.js'
+import Skeleton from '../components/ui/Skeleton.jsx'
+import { useEffect, useState } from 'react'
+
 
 export default function HomePage() {
-  const { user } = useOutletContext()
-  // TODO(backend): replace with counts from your API.
-  const stats = permitStats()
 
+  const { profile } = useOutletContext()
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const jwt = localStorage.getItem('token');
+    fetch('/api/documents/stats', {method: 'GET', headers: {
+      Authorization: `Bearer ${jwt}`
+    }})
+    .then(r => r.json()).then(d => {if(d.stats){setStats(d.stats)}})
+      .catch((err) => {return;})
+  }, [])
+
+  // `to` matches the `stare` values in useArchiveFilters — "Total emise" carries
+  // no param, which the archive reads as "Toate".
   const tiles = [
-    { label: 'Necesită semnătura ta', value: stats.necesitaSemnatura, rule: 'border-l-warn', tone: 'text-warn-text' },
-    { label: 'În așteptarea altora', value: stats.inAsteptareaAltora, rule: 'border-l-brand', tone: 'text-brand-text' },
-    { label: 'Complet', value: stats.complet, rule: 'border-l-ink', tone: 'text-ink' },
-    { label: 'Total emise', value: stats.total, rule: 'border-l-ink-200', tone: 'text-ink-500' },
+    { label: 'Necesită semnătura ta', value: stats?.emitentSignNeeded ?? '-', to: '/arhiva?stare=semnatura_ta', rule: 'border-l-warn', tone: 'text-warn-text' },
+    { label: 'În așteptarea altora', value: stats?.sefLucrareSignNeeded ?? '-', to: '/arhiva?stare=asteapta_altii', rule: 'border-l-brand', tone: 'text-brand-text' },
+    { label: 'Complet', value: stats?.completed ?? '-', to: '/arhiva?stare=complet', rule: 'border-l-ink', tone: 'text-ink' },
+    { label: 'Total emise', value: stats?.total ?? '-', to: '/arhiva', rule: 'border-l-ink-200', tone: 'text-ink-500' },
   ]
 
-  const prenume = user.nume.split(' ')[0]
+  const prenume = profile.prenume;
 
   return (
     <PageTransition>
@@ -55,12 +68,18 @@ export default function HomePage() {
                 transition={{ duration: 0.28, delay: 0.06 + i * 0.05, ease: 'easeOut' }}
               >
                 <Link
-                  to="/arhiva"
+                  to={tile.to}
                   className={`flex items-center gap-3.5 border border-line ${tile.rule} border-l-[3px] bg-surface px-4 py-3.5 no-underline transition-colors duration-150 hover:bg-surface-alt`}
                 >
-                  <span className={`min-w-[26px] text-stat font-medium leading-none ${tile.tone}`}>
-                    {tile.value}
-                  </span>
+                  {stats ? (
+                    <span className={`min-w-[26px] text-stat font-medium leading-none ${tile.tone}`}>
+                      {tile.value}
+                    </span>
+                  ) : (
+                    // Sized to the digit it replaces, so the row doesn't shift
+                    // when the real count lands.
+                    <Skeleton className="h-[22px] w-[26px] min-w-[26px]" />
+                  )}
                   <span className="text-body-sm text-ink-700">{tile.label}</span>
                 </Link>
               </motion.div>

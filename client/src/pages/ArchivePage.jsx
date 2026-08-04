@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import {toRomanianDate} from '../lib/text.js'
 
 export default function ArchivePage() {
-  const { user } = useOutletContext()
+  const { profile } = useOutletContext()
   // TODO(backend): replace PERMITS with the permits fetched for this user.
   const [ permits, setPermits ] = useState([])
 
@@ -82,7 +82,7 @@ export default function ArchivePage() {
         <ArchiveTable
           rows={rows}
           total={permits.length}
-          emitentNume={user.nume}
+          emitentNume={profile.numeAfisat}
           // TODO(backend): wire these to your detail route / download endpoint.
           onOpen={() => {}}
           onDownload={() => {}}
