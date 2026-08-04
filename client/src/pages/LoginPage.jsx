@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
     if (!EMAIL_RE.test(email.trim())) {
@@ -40,10 +40,41 @@ export default function LoginPage() {
     // and `setError(...)` on failure. The timeout below only exists so the
     // loading state is visible in the mockup — delete it.
     // ─────────────────────────────────────────────────────────────────────
-    setTimeout(() => {
-      setLoading(false)
+
+    try {
+      //call the endpoint
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password
+        })
+      })
+
+      const data = await response.json();
+
+      //handle server-side errors
+      if (!response.ok) {
+        throw new Error(data.message || 'Date de autentificare incorecte.');
+      }
+
+      //save the session token in local storage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
+      //navigate on success
       navigate('/')
-    }, 900)
+
+    } catch (err) {
+      setError(err.message || 'A aparut o eroare. Va rugam sa incercati din nou');
+    } finally {
+      //stop loading regardless of success or failure
+      setLoading(false);
+    }
   }
 
   return (
