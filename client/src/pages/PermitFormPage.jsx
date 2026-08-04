@@ -13,6 +13,7 @@ import SegmentedControl from '../components/ui/SegmentedControl.jsx'
 import TextField from '../components/ui/TextField.jsx'
 import Textarea from '../components/ui/Textarea.jsx'
 import ExecutantRow from '../features/permit/ExecutantRow.jsx'
+import PermitCreatedPanel from '../features/permit/PermitCreatedPanel.jsx'
 import SubmitBar from '../features/permit/SubmitBar.jsx'
 import { usePermitForm } from '../features/permit/usePermitForm.js'
 import {
@@ -64,6 +65,9 @@ export default function PermitFormPage() {
   const [toast, setToast] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [sent, setSent] = useState(false)
+  // The created row from POST /api/documents/new — carries the emitent's signing
+  // link and access code, which exist nowhere else in the UI.
+  const [created, setCreated] = useState(null)
   const timer = useRef(null)
 
   const inFlight = useRef(false)
@@ -128,7 +132,7 @@ export default function PermitFormPage() {
       const data = await res.json();
       if(data.success){
         setSent(true)
-        flash(`Permis trimis spre semnare către ${values.sefEmail}.`)
+        setCreated(data.data)
       }
       else
         flash(data.error)
@@ -143,6 +147,18 @@ export default function PermitFormPage() {
   }
 
   const tipOptions = TIPURI_LUCRARE.map((t) => ({ value: t.slug, label: t.label }))
+
+  // The permit exists from here on — the form is done, so it is replaced rather
+  // than left on screen locked.
+  if (created) {
+    return (
+      <PageTransition>
+        <main className="mx-auto flex w-full max-w-[620px] flex-1 flex-col px-7 pb-20 pt-14">
+          <PermitCreatedPanel permit={created} />
+        </main>
+      </PageTransition>
+    )
+  }
 
   return (
     <PageTransition>
