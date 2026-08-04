@@ -6,11 +6,52 @@ import SegmentedControl from '../components/ui/SegmentedControl.jsx'
 import ArchiveTable from '../features/archive/ArchiveTable.jsx'
 import { FILTERS, useArchiveFilters } from '../features/archive/useArchiveFilters.js'
 import { PERMITS } from '../lib/placeholderData.js'
+import { useEffect, useState } from 'react'
+import {toRomanianDate} from '../lib/text.js'
 
 export default function ArchivePage() {
   const { profile } = useOutletContext()
-  const permits = PERMITS
+  // TODO(backend): replace PERMITS with the permits fetched for this user.
+  const [ permits, setPermits ] = useState([])
+
   const { filter, setFilter, query, setQuery, rows } = useArchiveFilters(permits)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const permits = fetch('/api/documents/all', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+    }).then((res) => {
+      if (!res.ok) {
+        throw new Error('Nu s-au putut incarca documentele');
+      }
+      return res.json();
+    }).then((d) => {
+      let rows = []
+      for (const row of d.data) {
+        rows.push({
+          id: row.id,
+          data: new Date(row.created_at).toLocaleDateString('ro-RO', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                }),
+          instalatie: row.instalatie,
+          locatie: row.locatie,
+          tip: row.tip,
+          sef: row.sef_lucrare_email,
+          emitentSemnat: row.emitent_signed_at ? true : false,
+          sefSemnat: row.sef_lucrare_signed_at ? true : false,
+        });
+      }
+      setPermits(rows);
+    }) //save json array to state
+    .catch((err) => console.error(err))
+  }, [])
+
 
   return (
     <PageTransition>

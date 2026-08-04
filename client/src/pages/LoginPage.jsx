@@ -38,12 +38,6 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    // ─────────────────────────────────────────────────────────────────────
-    // TODO(backend): call your login endpoint here, then navigate on success
-    // and `setError(...)` on failure. The timeout below only exists so the
-    // loading state is visible in the mockup — delete it.
-    // ─────────────────────────────────────────────────────────────────────
-
     try {
       //call the endpoint
       const response = await fetch('/api/auth/login', {
