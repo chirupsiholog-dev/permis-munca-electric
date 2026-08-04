@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import Wordmark from '../components/brand/Wordmark.jsx'
 import Alert from '../components/ui/Alert.jsx'
@@ -13,6 +13,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // AppLayout stashes the page the user was trying to reach before the redirect.
+  const from = location.state?.from ?? '/'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -66,8 +69,8 @@ export default function LoginPage() {
         localStorage.setItem('token', data.token);
       }
 
-      //navigate on success
-      navigate('/')
+      //navigate on success — back to wherever the guard interrupted them
+      navigate(from, { replace: true })
 
     } catch (err) {
       setError(err.message || 'A aparut o eroare. Va rugam sa incercati din nou');
