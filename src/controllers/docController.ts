@@ -224,7 +224,10 @@ export const postDocument = async (req: Request, res: Response) => {
                 'namirial_envelope_id': envelopeId,
                 'cod_acces': accessCode,
                 'emitent_signing_link': emitentSigningLink,
-                'workflow_status': 'pending_emitent'
+                'workflow_status': 'pending_emitent',
+                'locatie': pdfData.locatia,
+                'instalatie': pdfData.instalatia,
+                'tip': pdfData.tipLucrare.includes('altul')?pdfData.tip_lucrare_altul_text:pdfData.tipLucrare
             })
             .select('*')
             .single();
