@@ -304,10 +304,14 @@ export const downloadDocument = async(req: Request, res: Response)=>{
         const documents = await downloadSigned(docData.namirial_envelope_id);
         const zipBuffer = await generateZip(documents);
 
+        //so the frontend fetch can see the Content-Disposition header
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+        
         res.setHeader('Content-Disposition', `attachment; filename="permis_electric_munca_${docId}.zip"`)
         res.setHeader('Content-Type', 'application/zip');
 
         return res.send(zipBuffer);
+
     }catch(err: any){
         console.log(`Error downloading envelope: ${err.message}`)
         return res.status(500).json({error: 'Failed to download document'})
