@@ -66,7 +66,7 @@ export default function ArchiveRow({ permit, emitentNume, onOpen, onDownload }) 
       <span className="flex min-w-0 flex-col gap-[3px]">
         <span className="truncate font-bold text-ink">{permit.instalatie}</span>
         <span className="text-meta text-ink-400">
-          {permit.locatie} · {permit.tip}
+          {permit.locatie} · {permit.tip?.toUpperCase()}
         </span>
       </span>
 
@@ -88,13 +88,15 @@ export default function ArchiveRow({ permit, emitentNume, onOpen, onDownload }) 
 
       <span className="flex items-center gap-2.5 justify-self-end">
 
-        <button
-        type="button"
-        onClick={() => onOpen?.(permit)}
-        className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
-        >
-          Deschide
-        </button>
+        {!permit.emitentSemnat && (
+          <button
+          type="button"
+          onClick={() => onOpen?.(permit)} //?. => optional chaining = only call the onOpen function on permit, if the function exists
+          className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
+          >
+            Deschide
+          </button>
+        )}
 
 
         {complet && (
