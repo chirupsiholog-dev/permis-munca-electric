@@ -1,9 +1,19 @@
-*.env.*
+# Secrets. `.env.example` files are templates and belong in the repo.
 .env
+*.env.*
+!*.env.example
+
+# Local scratch
 test.ts
+
+# Dependencies and build output
 node_modules/
 dist/
-*.pdf
-docs/
-*/assets
-*/permis-munca-login-design
+
+# Sample and generated PDFs at the repo root only — anchored with a leading
+# slash so it cannot reach src/assets/, which holds the AcroForm template that
+# fillPdf() reads at runtime. Without that file every permit creation 500s.
+/*.pdf
+
+# Design handoff bundle, if it is ever copied in
+permis-munca-login-design/
