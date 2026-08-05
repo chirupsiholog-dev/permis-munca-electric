@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react'
 
 export default function ArchivePage() {
   const { profile } = useOutletContext()
-  // TODO(backend): replace PERMITS with the permits fetched for this user.
   const [ permits, setPermits ] = useState([])
   const [ loading, setLoading ] = useState(true)
 
@@ -54,6 +53,19 @@ export default function ArchivePage() {
     .finally(() => setLoading(false))
   }, [])
 
+  const handleOpen = (row) => {
+    //if emitent has not signed yet, we need to open the signing link for the emitent
+    if (!row.emitentSemnat) {
+      if (row.emitentSigningLink) {
+        window.open(row.emitentSigningLink, '_blank', 'noopener,noreferrer');
+      }
+      else {
+        alert('Link-ul de semnare pentru emitent nu este disponibil');
+      }
+      return;
+    }
+  }
+
 
   return (
     <PageTransition>
@@ -86,7 +98,7 @@ export default function ArchivePage() {
           total={permits.length}
           loading={loading}
           emitentNume={profile.numeAfisat}
-          onOpen={() => {}} 
+          onOpen={(row) => handleOpen(row)}
           onDownload={async(permitId) => {
             try{
               const jwt = localStorage.getItem('token');
