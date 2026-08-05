@@ -45,7 +45,6 @@ export default function ArchivePage() {
           sefSemnat: row.sef_lucrare_signed_at ? true : false,
           codAcces: row.cod_acces,
           emitentSigningLink: row.emitent_signing_link,
-          sefLucrareSigningLink: row.sef_lucrare_signing_link
         });
       }
       setPermits(rows);
@@ -65,20 +64,6 @@ export default function ArchivePage() {
       }
       return;
     }
-
-    //if emitent has signed but sef lucrare has not signed yet
-    if (!row.sefSemnat) {
-      if (row.sefLucrareSigningLink) {
-        //open the signing link for sef lucrare
-        window.open(row.sefLucrareSigningLink, '_blank', 'noopener,noreferrer');
-      }
-      else {
-        alert('Link-ul de semnare pentru sef lucrare nu este disponibil');
-      }
-      return;
-    }
-
-    handleDownload(row); //both emitent and sef lucrare have signed, redirect to handleDownload for the finished document
   }
 
 
@@ -114,7 +99,53 @@ export default function ArchivePage() {
           loading={loading}
           emitentNume={profile.numeAfisat}
           onOpen={(row) => handleOpen(row)}
-          onDownload={() => {}}
+          onDownload={async(permitId) => {
+            try{
+              const jwt = localStorage.getItem('token');
+              const res = await fetch(`/api/documents/${permitId}/download`,
+                {headers: {
+                  Authorization: `Bearer ${jwt}`
+                }}
+              );
+              if(!res.ok){
+                throw new Error('Internal server error');
+              }
+
+              let filename = '';
+              //extract the name from the content disposition header
+              const disposition = res.headers.get('Content-Disposition')
+              const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+              const matches = filenameRegex.exec(disposition);
+              if (matches != null && matches[1]) { 
+                filename = matches[1].replace(/['"]/g, ''); // Removes the quotes from the backend string
+              }
+
+              //convert the data into blob (binary large object)
+              const blob = await res.blob();
+              //create a temporary url for the blob
+              const url = window.URL.createObjectURL(blob);
+              //create a temporary (hidden) <a> tag
+              const link = document.createElement('a');
+              link.href =url;
+              //set download attribute with the filename we extracted
+              link.setAttribute('download', filename)
+              
+              //append the link to the body of the html page associated with this code, that is open in the browser
+              document.body.appendChild(link);
+              //click it - trigger the download
+              link.click() 
+              //remove it from the body
+              link.remove();
+              //clean up the temporary url to save memory
+              window.URL.revokeObjectURL(url);
+
+              //ArchiveRow uses this to decide between success and a brief error state
+              return true;
+            }catch(err){
+              console.error("Download failed:", err);
+              return false;
+            }
+          }}
         />
       </main>
     </PageTransition>

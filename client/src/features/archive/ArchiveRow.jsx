@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 
+import Spinner from '../../components/ui/Spinner.jsx'
 import StatusDot from '../../components/ui/StatusDot.jsx'
 import { GRID } from './archiveGrid.js'
 import { stareKey } from './useArchiveFilters.js'
 
-/** Tones match the home-screen tiles: amber = your move, brand = someone else's. */
 const STARI = {
   semnatura_ta: { label: 'Semnătura ta', tone: 'pending' },
   asteapta_altii: { label: 'Așteaptă alții', tone: 'signed' },
@@ -19,6 +20,36 @@ export default function ArchiveRow({ permit, emitentNume, onOpen, onDownload }) 
   const complet = stareKey(permit) === 'complet'
   const emitent = semnatura(permit.emitentSemnat)
   const sef = semnatura(permit.sefSemnat)
+
+  //per-row, not per-table
+  const [downloading, setDownloading] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const errorTimer = useRef(null)
+
+  useEffect(() => () => clearTimeout(errorTimer.current), [])
+
+  async function handleDownload() {
+    if (downloading) return
+    setDownloading(true)
+    setFailed(false)
+
+    try {
+      // Only an explicit `false` counts as failure, so a handler that returns
+      // nothing isn't misread as a broken download.
+      if ((await onDownload(permit.id)) === false) flashError()
+    } catch {
+      flashError()
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  /** Self-clearing: the button is the retry, so the error shouldn't be sticky. */
+  function flashError() {
+    setFailed(true)
+    clearTimeout(errorTimer.current)
+    errorTimer.current = setTimeout(() => setFailed(false), 4000)
+  }
 
   return (
     <motion.div
@@ -56,37 +87,70 @@ export default function ArchiveRow({ permit, emitentNume, onOpen, onDownload }) 
       </span>
 
       <span className="flex items-center gap-2.5 justify-self-end">
+
         <button
-          type="button"
-          onClick={() => onOpen?.(permit)}
-          className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
+        type="button"
+        onClick={() => onOpen?.(permit)}
+        className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
         >
           Deschide
         </button>
 
+
         {complet && (
           <button
             type="button"
-            title="Descarcă PDF"
-            aria-label={`Descarcă PDF — ${permit.instalatie}`}
-            onClick={() => onDownload?.(permit)}
-            className="flex h-[30px] w-[30px] flex-none cursor-pointer items-center justify-center border border-line-btn bg-surface p-0 transition-colors duration-150 hover:border-brand hover:bg-info-bg"
+            title={
+              downloading
+                ? 'Se descarcă…'
+                : failed
+                  ? 'Descărcarea a eșuat. Încearcă din nou.'
+                  : 'Descarcă'
+            }
+            aria-label={`Descarcă — ${permit.instalatie}`}
+            aria-busy={downloading}
+            disabled={downloading}
+            onClick={handleDownload}
+            className={`flex h-[30px] w-[30px] flex-none cursor-pointer items-center justify-center border bg-surface p-0 transition-colors duration-150 disabled:cursor-wait ${
+              failed
+                ? 'border-danger bg-danger-bg'
+                : 'border-line-btn hover:border-brand hover:bg-info-bg disabled:border-brand disabled:bg-info-bg'
+            }`}
           >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="square"
-              className="text-brand"
-              aria-hidden="true"
-            >
-              <path d="M12 4v11" />
-              <path d="M7 11l5 5 5-5" />
-              <path d="M5 20h14" />
-            </svg>
+            {downloading ? (
+              <Spinner tone="brand" />
+            ) : failed ? (
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="square"
+                className="text-danger"
+                aria-hidden="true"
+              >
+                <path d="M12 6.5v7" />
+                <path d="M12 16.8v.7" />
+              </svg>
+            ) : (
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="square"
+                className="text-brand"
+                aria-hidden="true"
+              >
+                <path d="M12 4v11" />
+                <path d="M7 11l5 5 5-5" />
+                <path d="M5 20h14" />
+              </svg>
+            )}
           </button>
         )}
       </span>
