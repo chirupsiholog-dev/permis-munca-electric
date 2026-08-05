@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react'
 
 export default function ArchivePage() {
   const { profile } = useOutletContext()
-  // TODO(backend): replace PERMITS with the permits fetched for this user.
   const [ permits, setPermits ] = useState([])
   const [ loading, setLoading ] = useState(true)
 
@@ -44,7 +43,9 @@ export default function ArchivePage() {
           sef: row.sef_lucrare_email,
           emitentSemnat: row.emitent_signed_at ? true : false,
           sefSemnat: row.sef_lucrare_signed_at ? true : false,
-          codAcces: row.cod_acces
+          codAcces: row.cod_acces,
+          emitentSigningLink: row.emitent_signing_link,
+          sefLucrareSigningLink: row.sef_lucrare_signing_link
         });
       }
       setPermits(rows);
@@ -52,6 +53,33 @@ export default function ArchivePage() {
     .catch((err) => console.error(err))
     .finally(() => setLoading(false))
   }, [])
+
+  const handleOpen = (row) => {
+    //if emitent has not signed yet, we need to open the signing link for the emitent
+    if (!row.emitentSemnat) {
+      if (row.emitentSigningLink) {
+        window.open(row.emitentSigningLink, '_blank', 'noopener,noreferrer');
+      }
+      else {
+        alert('Link-ul de semnare pentru emitent nu este disponibil');
+      }
+      return;
+    }
+
+    //if emitent has signed but sef lucrare has not signed yet
+    if (!row.sefSemnat) {
+      if (row.sefLucrareSigningLink) {
+        //open the signing link for sef lucrare
+        window.open(row.sefLucrareSigningLink, '_blank', 'noopener,noreferrer');
+      }
+      else {
+        alert('Link-ul de semnare pentru sef lucrare nu este disponibil');
+      }
+      return;
+    }
+
+    handleDownload(row); //both emitent and sef lucrare have signed, redirect to handleDownload for the finished document
+  }
 
 
   return (
@@ -85,8 +113,7 @@ export default function ArchivePage() {
           total={permits.length}
           loading={loading}
           emitentNume={profile.numeAfisat}
-          // TODO(backend): wire these to your detail route / download endpoint.
-          onOpen={() => {}}
+          onOpen={(row) => handleOpen(row)}
           onDownload={() => {}}
         />
       </main>
