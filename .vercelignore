@@ -1,0 +1,4 @@
+# The frontend is a separate Vercel project rooted at client/. Excluding it here
+# keeps it out of the backend deployment's upload — it was never bundled into the
+# function (nft traces from api/index.ts), just uploaded for nothing.
+client/
