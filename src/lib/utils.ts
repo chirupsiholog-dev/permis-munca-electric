@@ -1,7 +1,10 @@
 import JSZip from "jszip";
 import type { Document } from "./namirial.js";
 import {PDFDocument} from 'pdf-lib';
-import fs from 'fs/promises'
+//named import, not `import fs from 'fs/promises'` — the default export only
+//exists under Node's native ESM. Vercel bundles this to CJS, where the default
+//is undefined and every call throws "cannot read properties of undefined".
+import { readFile } from 'fs/promises'
 
 export async function generateZip(data: {documents: Document[], pdfAuditTrail: string}){
 
@@ -49,7 +52,7 @@ export interface PdfData{
 export async function fillPdf(data: PdfData, filePath: string){
 
    //read pdf bytes
-   const pdfBytes = await fs.readFile(filePath);
+   const pdfBytes = await readFile(filePath);
    //load pdf
    const pdfDoc = await PDFDocument.load(pdfBytes);
    //get acroform instance
