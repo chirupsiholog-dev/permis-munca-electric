@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { supabase } from '../lib/supabaseClient.js';
-import bcrypt from 'bcrypt';
+import { compare, hash } from 'bcryptjs';
 import jwt from 'jsonwebtoken'
 import { redis } from '../lib/redisClient.js';
 import crypto from 'node:crypto'
@@ -28,7 +28,7 @@ export const login = async(req: Request, res: Response) => {
        return res.status(401).json({'error': 'Invalid credentials'});
     }
 
-    const passwordsMatch = await bcrypt.compare(password, data.password_hash);
+    const passwordsMatch = await compare(password, data.password_hash);
 
     if(!passwordsMatch){
         return res.status(401).json({'error': 'Invalid credentials'});
@@ -99,7 +99,7 @@ export const signup = async(req: Request, res: Response) => {
         }
 
         //if the credentials are unused
-        const password_hash = await bcrypt.hash(password, 10);
+        const password_hash = await hash(password, 10);
         const {error: insertError} = await supabase.from('users').insert({
             'email': email,
             'username': username,
