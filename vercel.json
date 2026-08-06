@@ -1,6 +1,4 @@
 {
-  "// why the legacy `builds` form": "Zero-config kept running a static build and then failing on a missing output directory. Declaring `builds` opts out of framework detection completely: Vercel builds exactly this one function and never looks for static output. `builds` cannot be combined with `functions`/`rewrites`, hence `routes` below and the maxDuration export in api/index.ts.",
-
   "builds": [
     {
       "src": "api/index.ts",
@@ -10,7 +8,6 @@
       }
     }
   ],
-
   "routes": [
     { "src": "/(.*)", "dest": "/api/index.ts" }
   ]
