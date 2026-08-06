@@ -1,7 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "// buildCommand": "This project ships no static site — everything is the Express app in api/. Left empty so Vercel does not run `npm run build` (tsc) and then hunt for a static output directory. Vercel compiles api/index.ts itself.",
+  "buildCommand": "",
+  "outputDirectory": "public",
+
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }
   ],
+
   "functions": {
     "api/**": {
       "includeFiles": "src/assets/**",

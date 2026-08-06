@@ -1,0 +1,5 @@
+This directory exists only to satisfy Vercel's static-output check.
+
+The backend is API-only: vercel.json rewrites every path to the Express app in
+api/index.ts, so nothing in here is ever served. Do not delete — an absent
+outputDirectory fails the build with "No Output Directory named public found".
