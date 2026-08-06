@@ -1,18 +1,17 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "// why the legacy `builds` form": "Zero-config kept running a static build and then failing on a missing output directory. Declaring `builds` opts out of framework detection completely: Vercel builds exactly this one function and never looks for static output. `builds` cannot be combined with `functions`/`rewrites`, hence `routes` below and the maxDuration export in api/index.ts.",
 
-  "// buildCommand": "This project ships no static site — everything is the Express app in api/. Left empty so Vercel does not run `npm run build` (tsc) and then hunt for a static output directory. Vercel compiles api/index.ts itself.",
-  "buildCommand": "",
-  "outputDirectory": "public",
-
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/assets/**"]
+      }
+    }
   ],
 
-  "functions": {
-    "api/**": {
-      "includeFiles": "src/assets/**",
-      "maxDuration": 60
-    }
-  }
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.ts" }
+  ]
 }
