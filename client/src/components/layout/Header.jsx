@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 import Wordmark from '../brand/Wordmark.jsx'
+import LogoutButton from './LogoutButton.jsx'
 import UserBadge from './UserBadge.jsx'
 
 const NAV = [
@@ -37,7 +38,10 @@ export default function Header({ user }) {
           ))}
         </nav>
 
-        <UserBadge user={user} />
+        <div className="flex items-center gap-4">
+          <UserBadge user={user} />
+          <LogoutButton />
+        </div>
       </div>
     </header>
   )
