@@ -4,9 +4,10 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import AppShellSkeleton from './AppShellSkeleton.jsx'
 import Header from './Header.jsx'
 import Wordmark from '../brand/Wordmark.jsx'
+import { canVisit, USER_HOME } from '../../lib/roles.js'
 import { useEffect, useState } from 'react'
 
-const EMPTY = { id: '', email: '', username: '' }
+const EMPTY = { id: '', email: '', username: '', admin: false }
 
 export default function AppLayout() {
 
@@ -64,6 +65,7 @@ export default function AppLayout() {
 
   const profile = {
     ...user,
+    admin: Boolean(user?.admin),
     nume,
     prenume,
     numeAfisat,
@@ -79,6 +81,13 @@ export default function AppLayout() {
   }
 
   if (status === 'error') return <SessionError />
+
+  // Rolul se citește din /auth/me, deci poarta stă aici, nu în LoginPage: prinde
+  // la fel autentificarea, un URL deschis direct, un refresh sau butonul Back.
+  // `replace` ține ruta interzisă în afara istoricului, ca și redirectul de login.
+  if (!canVisit(profile.admin, location.pathname)) {
+    return <Navigate to={USER_HOME} replace />
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-ink-900">
