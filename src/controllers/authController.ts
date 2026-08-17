@@ -8,17 +8,22 @@ import { error } from 'node:console';
 
 
 const secretKey = process.env.JWT_SECRET;
+if (!secretKey) {
+    console.error('JWT Secret not loaded from env');
+    throw new Error('Server misconfiguration' );
+}
 
 
 export const login = async(req: Request, res: Response) => {
 
+
     const {email, password} = req.body;
 
     if(!email || !password){
-        return res.status(401).json({'error': 'Credentials are mandatory'});
+        return res.status(400).json({'error': 'Credentials are mandatory'});
     }
 
-    const {data, error} = await supabase.from('users').select('id, password_hash').eq('email', email).maybeSingle();
+    const {data, error} = await supabase.from('users').select('id, admin, password_hash').eq('email', email).maybeSingle();
 
     if(error){
         return res.status(500).json({'error': `DB Error: ${error.message}`});
@@ -34,15 +39,10 @@ export const login = async(req: Request, res: Response) => {
         return res.status(401).json({'error': 'Invalid credentials'});
     }
 
-    if(!secretKey){
-        console.log('JWT Secret not loaded from env');
-        throw new Error('JWT Secret not loaded from env');
-    }
-
-    //generate an id for the JWT token, so we can also pace it in redis when the user logs out, to blacklist the token
+    //generate an id for the JWT token, so we can also place it in redis when the user logs out, to blacklist the token
     const jwtId = crypto.randomUUID();
 
-    const token = jwt.sign({userId: data?.id, jwtId: jwtId}, secretKey, {expiresIn: '1d'}); //expiresIn is injected into the {userId: data.id} payload
+    const token = jwt.sign({userId: data?.id, admin: data?.admin, jwtId: jwtId}, secretKey, {expiresIn: '1d'}); //expiresIn is injected into the {userId: data.id} payload
     return res.status(200).json({'success': true, 'token': token});
 
 }

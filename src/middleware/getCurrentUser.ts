@@ -1,12 +1,18 @@
 import jwt from 'jsonwebtoken'
-import type { JwtPayload } from 'jsonwebtoken'
 import type { Request, Response, NextFunction } from 'express'
 import { redis } from '../lib/redisClient.js'
 
-export interface CustomRequest extends Request{
-    user: string,
-    jwtId: string,
-    exp: number
+
+interface AppJwtPayload extends jwt.JwtPayload {
+  userId: string;
+  admin: boolean;
+  jwtId: string;
+}
+
+const secretKey = process.env.JWT_SECRET;
+if(!secretKey){
+    console.log('JWT Secret not loaded from env');
+    throw new Error('JWT Secret not loaded from env');
 }
 
 export const getCurrentUser = async(req: Request, res: Response, next: NextFunction) => {
@@ -18,15 +24,9 @@ export const getCurrentUser = async(req: Request, res: Response, next: NextFunct
 
     const token = authHeader[1];
 
-    const secretKey = process.env.JWT_SECRET;
-    if(!secretKey){
-        console.log('JWT Secret not loaded from env');
-        throw new Error('JWT Secret not loaded from env');
-    }
-
     let payload;
     try{
-        payload = jwt.verify(token, secretKey) as jwt.JwtPayload
+        payload = jwt.verify(token, secretKey) as AppJwtPayload
     }catch(err){
         if(err instanceof jwt.TokenExpiredError)
             return res.status(401).json({'error': 'Token expired', 'code': 'token_expired'})
@@ -44,6 +44,7 @@ export const getCurrentUser = async(req: Request, res: Response, next: NextFunct
     }
 
     req.user = payload.userId;
+    req.admin = payload.admin;
     req.jwtId = payload.jwtId;
     req.exp = payload.exp as number;
 

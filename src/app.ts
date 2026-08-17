@@ -40,5 +40,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', docRoutes);
 app.use('/api/namirial', namirialRoutes);
+app.use('/api/site-reports');
 
 export default app;
