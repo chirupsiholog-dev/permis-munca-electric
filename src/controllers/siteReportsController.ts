@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient.js"
 
 interface DailyReport{
     parc: string,
-    teamMembers: string[],
+    echipa: string[],
     data: string,
     oreLucrate: number,
     inductieOre: number,
@@ -15,16 +15,16 @@ export const uploadReport = async(req: Request, res: Response) => {
 
     const userId = req.user;
 
-    const {parc, teamMembers, data, oreLucrate, inductieOre, mediuOre} = req.body as DailyReport;
+    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre} = req.body as DailyReport;
 
-    if (!parc || !teamMembers?.length || !data || oreLucrate == null || inductieOre == null || mediuOre == null) {
+    if (!parc || !echipa?.length || !data || oreLucrate == null || inductieOre == null || mediuOre == null) {
         return res.status(400).json({ error: 'Toate campurile sunt obligatorii' });
     }
 
     const {error: reportError} = await supabase.from('site_reports').insert({
         'user_id': userId,
         'parc': parc,
-        'echipa': teamMembers,
+        'echipa': echipa,
         'data': data,
         'ore_lucrate': oreLucrate,
         'mediu_ore': mediuOre,
@@ -36,8 +36,6 @@ export const uploadReport = async(req: Request, res: Response) => {
     }
 
     return res.status(200).json({success: true, message: 'Raport on-site salvat cu success'});
-
-
 }
 
 export const getReports = async (req: Request, res: Response) => {
