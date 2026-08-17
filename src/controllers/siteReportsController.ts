@@ -41,7 +41,12 @@ export const uploadReport = async(req: Request, res: Response) => {
 export const getReports = async (req: Request, res: Response) => {
 
 
-    const {data, error} = await supabase.from('site_reports').select('*').order('data', {ascending: false});
+    let query = supabase.from('site_reports').select('*').order('data', {ascending: false});
+    const parcFilter = req.query.parc;
+    if(parcFilter)
+        query = query.eq('parc', (parcFilter as string));
+
+    const {data, error} = await query
     
     if(error){
         return res.status(500).json({error: 'Internal server error'});
