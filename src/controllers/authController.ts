@@ -123,7 +123,7 @@ export const signup = async(req: Request, res: Response) => {
 export const me = async (req: Request, res: Response) => {
 
     const userId = req.user;
-    const {data: userData, error: userError} = await supabase.from('users').select('id, email, username').eq('id', userId).maybeSingle();
+    const {data: userData, error: userError} = await supabase.from('users').select('id, email, username, admin').eq('id', userId).maybeSingle();
     if(userError){
         return res.status(500).json({error: 'Internal server error'})
     }

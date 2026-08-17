@@ -7,7 +7,10 @@ interface DailyReport{
     data: string,
     oreLucrate: number,
     inductieOre: number,
-    mediuOre: number
+    mediuOre: number,
+    nearMiss: number,
+    mentenantaColectiva: number,
+    mentenantaPreventiva: number
     
 }
 
@@ -26,7 +29,7 @@ function isValidReport(body: any): body is DailyReport {
   if(!isValidDateString(body.data))
     return false;
 
-  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre'] as const) {
+  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre', 'nearMiss', 'mentenantaPreventiva', 'mentenantaColectiva'] as const) {
     const v = body[field];
     if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return false;
   }
@@ -41,7 +44,7 @@ export const uploadReport = async(req: Request, res: Response) => {
         return res.status(400).json({ error: 'Toate campurile sunt obligatorii si neaparat valide' });
     }
 
-    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre} = req.body as DailyReport;
+    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaColectiva, mentenantaPreventiva} = req.body as DailyReport;
 
     const {error: reportError} = await supabase.from('site_reports').insert({
         'user_id': userId,
@@ -50,7 +53,10 @@ export const uploadReport = async(req: Request, res: Response) => {
         'data': data,
         'ore_lucrate': oreLucrate,
         'mediu_ore': mediuOre,
-        'inductie_ore': inductieOre
+        'inductie_ore': inductieOre,
+        'near_miss': nearMiss,
+        'mentenanta_colectiva': mentenantaColectiva,
+        'mentenanta_preventiva': mentenantaPreventiva
     })
 
     if(reportError){
@@ -60,7 +66,7 @@ export const uploadReport = async(req: Request, res: Response) => {
     return res.status(200).json({success: true, message: 'Raport on-site salvat cu success'});
 }
 
-export const getReports = async (req: Request, res: Response) => {
+export const getAdminReports = async (req: Request, res: Response) => {
 
     let query = supabase.from('site_reports').select('*').order('data', {ascending: false});
     const parcFilter = req.query.parc;
@@ -78,4 +84,67 @@ export const getReports = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({success: true, data: data})
+}
+
+export const getReports = async(req: Request, res: Response) => {
+
+    const userId = req.user;
+
+    let query = supabase.from('site_reports').select('*').eq('user_id', userId).order('data', {ascending: false});
+    const parcFilter = req.query.parc;
+    if(parcFilter !== undefined){
+        if(typeof parcFilter !== 'string'){
+            return res.status(400).json({error: 'Invalid filter'});
+        }
+        query = query.eq('parc', parcFilter.trim());
+    }
+
+    const {data, error} = await query
+    
+    if(error){
+        return res.status(500).json({error: 'Internal server error'});
+    }
+
+    return res.status(200).json({success: true, data: data})
+}
+
+export const editReport = async (req: Request, res: Response) => {
+
+    const userId = req.user;
+    const reportId = req.params['id'];
+    const {data: reportData, error: reportError} = await supabase.from('site_reports').select('*').eq('id', reportId).eq('user_id', userId).maybeSingle();
+
+    if(reportError){
+        return res.status(500).json({error: 'Internal server error'});
+    }
+
+    if(!reportData){
+        return res.status(400).json({error: 'Raport invalid'});
+    }
+
+    if(!isValidReport(req.body)){
+        return res.status(400).json({ error: 'Toate campurile sunt obligatorii si neaparat valide' });
+    }
+
+    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaColectiva, mentenantaPreventiva} = req.body as DailyReport;
+
+
+    const{error: updateError} = await supabase.from('site_reports').update({
+        'parc': parc.trim(),
+        'echipa': echipa.map((m: string) => m.trim()),
+        'data': data,
+        'ore_lucrate': oreLucrate,
+        'mediu_ore': mediuOre,
+        'inductie_ore': inductieOre,
+        'near_miss': nearMiss,
+        'mentenanta_colectiva': mentenantaColectiva,
+        'mentenanta_preventiva': mentenantaPreventiva
+    }).eq('id', reportId).eq('user_id', userId);
+
+    if(updateError){
+        return res.status(500).json({error: 'Editarea a esuat'});
+    }
+
+    return res.status(200).json({success:true, message: 'Raport editat cu success'})
+
 }
