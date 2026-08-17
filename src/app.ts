@@ -5,6 +5,7 @@ import docRoutes from './router/docRoutes.js'
 import namirialRoutes from './router/namirialRoutes.js';
 import { openapiSpec } from './docs/openapi.js';
 import cors from 'cors'
+import siteReportsRoutes from './router/siteReportsRoutes.js'
 
 
 const app = express();
@@ -40,6 +41,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', docRoutes);
 app.use('/api/namirial', namirialRoutes);
-app.use('/api/site-reports');
+app.use('/api/site-reports', siteReportsRoutes);
 
 export default app;
