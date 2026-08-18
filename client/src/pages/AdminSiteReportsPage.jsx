@@ -28,7 +28,7 @@ import SegmentedControl from '../components/ui/SegmentedControl.jsx'
 const GRID = {
   display: 'grid',
   gridTemplateColumns:
-    '96px minmax(140px, 1fr) minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 96px 120px 120px',
+    '96px minmax(140px, 1fr) minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 120px 120px',
   gap: '16px',
   width: '100%',
 }
@@ -207,20 +207,21 @@ export default function AdminSiteReportsPage() {
 
       const jwt = localStorage.getItem('token');
 
-      let url = '/api/site-reports/admin/download';
+      const params = new URLSearchParams();
       if(luna !== TOATE && parc !== TOATE){
         const tokens = luna.split('-');
-        const year = tokens[0];
-        const month = tokens[1];
-        url += `?luna=${month}&an=${year}&parc=${parc}`;
+        params.set('an', tokens[0]);
+        params.set('luna', tokens[1]);
+        params.set('parc', parc);
       }else if (luna !== TOATE){
         const tokens = luna.split('-');
-        const year = tokens[0];
-        const month = tokens[1];
-        url += `?luna=${month}&an=${year}`;
+        params.set('an', tokens[0]);
+        params.set('luna', tokens[1]);
       }else if (parc !== TOATE){
-        url += `?parc=${parc}`;
+        params.set('parc', parc);
       }
+      const query = params.toString();
+      const url = `/api/site-reports/admin/download${query ? `?${query}` : ''}`;
       
       const res = await fetch(url, {method: 'GET', headers: {Authorization: `Bearer ${jwt}`}})
       if(!res.ok){
