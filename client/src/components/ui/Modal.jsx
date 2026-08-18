@@ -2,9 +2,16 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 
-export default function Modal({ isOpen, onClose, children }) {
+let bodyScrollLockCount = 0
+let savedBodyOverflow = ''
+
+export default function Modal({ isOpen, onClose, label, labelledBy, children }) {
   const containerRef = useRef(null)
   const previousFocusedRef = useRef(null)
+
+  if (!label && !labelledBy) {
+    throw new Error('Modal requires either a label or labelledBy prop for accessibility.')
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -38,10 +45,15 @@ export default function Modal({ isOpen, onClose, children }) {
         container.focus()
         return
       }
-
       const firstElement = focusableElements[0]
       const lastElement = focusableElements[focusableElements.length - 1]
       const activeElement = document.activeElement
+
+      if (!container.contains(activeElement)) {
+        e.preventDefault()
+        ;(e.shiftKey ? lastElement : firstElement).focus()
+        return
+      }
 
       if (e.shiftKey) {
         if (activeElement === firstElement || activeElement === container) {
@@ -55,15 +67,32 @@ export default function Modal({ isOpen, onClose, children }) {
         e.preventDefault()
         firstElement.focus()
       }
+        return
+      }
+
+      if (activeElement === lastElement) {
+        e.preventDefault()
+        firstElement.focus()
+      }
     }
 
     document.addEventListener('keydown', onKeyDown)
-    document.body.style.overflow = 'hidden'
+
+    if (bodyScrollLockCount === 0) {
+      savedBodyOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
+    bodyScrollLockCount += 1
 
     return () => {
       cancelAnimationFrame(focusId)
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = ''
+
+      bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+      if (bodyScrollLockCount === 0) {
+        document.body.style.overflow = savedBodyOverflow
+      }
+
       if (previousFocusedRef.current?.isConnected) {
         previousFocusedRef.current.focus()
       }
@@ -95,6 +124,8 @@ export default function Modal({ isOpen, onClose, children }) {
             ref={containerRef}
             role="dialog"
             aria-modal="true"
+            aria-label={labelledBy ? undefined : label}
+            aria-labelledby={labelledBy}
             tabIndex={-1}
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}

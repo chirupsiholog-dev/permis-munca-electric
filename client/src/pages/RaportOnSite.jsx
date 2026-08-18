@@ -56,6 +56,8 @@ export default function DailyReportForm({
         setWorkers(initialData.echipa)
       }else if (typeof initialData.echipa === 'string'){//fallback in case db returns a string instead of an array{
         setWorkers(initialData.echipa.split(",").map(w => w.trim()));
+      }else {      
+        setWorkers(Array(minWorkers).fill(""));
       }
     }else{
       setVals({}) //empty form
@@ -131,6 +133,30 @@ export default function DailyReportForm({
       return;
     }
 
+    const parsedNumbers = {};
+
+    const numericKeys = [
+      "oreLucrate",
+      "inductieOre",
+      "mediuOre",
+      "nearMiss",
+      "mentenantaCorectiva",
+      "mentenantaPreventiva",
+    ];
+
+    for(const key of numericKeys){
+      const normalizedString = String(vals[key] ?? "").trim().replace(",", ".");
+      const numValue = Number(normalizedString);
+
+      if (!Number.isFinite(numValue)) {
+        const label = key.replace(/([A-Z])/g, " $1").toLowerCase(); //inductieOre becomes Inductie Ore for example
+        flash(`Valoare invalidă la câmpul: ${label}. Folosiți doar cifre.`);
+        return;
+      }
+
+      parsedNumbers[key] = numValue;
+    }
+
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -140,12 +166,12 @@ export default function DailyReportForm({
         parc: vals.parc,
         echipa: workers.filter((w) => w.trim() !== ''),
         data: parseDataToIso(vals.data),
-        oreLucrate: Number(vals.oreLucrate),
-        inductieOre: Number(vals.inductieOre),
-        mediuOre: Number(vals.mediuOre),
-        nearMiss: Number(vals.nearMiss),
-        mentenantaCorectiva: Number(vals.mentenantaCorectiva),
-        mentenantaPreventiva: Number(vals.mentenantaPreventiva),
+        oreLucrate: parsedNumbers.oreLucrate,
+        inductieOre: parsedNumbers.inductieOre,
+        mediuOre: parsedNumbers.mediuOre,
+        nearMiss: parsedNumbers.nearMiss,
+        mentenantaCorectiva: parsedNumbers.mentenantaCorectiva,
+        mentenantaPreventiva: parsedNumbers.mentenantaPreventiva
       }
 
       let res;

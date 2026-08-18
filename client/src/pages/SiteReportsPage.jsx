@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -44,15 +44,18 @@ const COLUMNS = [
   { label: '' },
 ]
 
-/** `data` vine ca `YYYY-MM-DD` din backend, fără fus orar. */
-const formatData = (data) =>
-  new Date(`${data}T00:00:00.000Z`).toLocaleDateString('ro-RO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+const formatData = (data) => {
+  if (!data) return '-'; 
+  try {
+    const dateStr = String(data).includes('T') ? data : `${data}T00:00:00.000Z`;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return data; 
+    return d.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch (err) {
+    return data;
+  }
+}
 
-/** Zecimalele apar doar când există (24 rămâne „24”, nu „24,0”). */
 const formatNumar = (n) => new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(n)
 
 const normalizeText = (text) =>
@@ -94,8 +97,20 @@ export default function SiteReportsPage() {
       })
   }, [reports, parc, query])
 
+  //we keep the current active controller in a reference
+  const abortControllerRef = useRef(null);
 
-  const fetchResponse = async(signal) => {
+  const fetchResponse = async() => {
+
+      //create controller for active request that handles request cancelation
+      const controller = new AbortController();
+
+      //if there is an active request (controller)
+      if(abortControllerRef.current){
+        //stop it before we start another request to avoid concurrency problems, like an old request overwriting the latest request
+        abortControllerRef.current.abort();
+      }
+
       const jwt = localStorage.getItem('token');
       try{
 
@@ -106,7 +121,7 @@ export default function SiteReportsPage() {
           Authorization: `Bearer ${jwt}`},
           //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
           //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
-          signal: signal
+          signal: controller.signal
         });
 
         if(!res.ok)
@@ -118,14 +133,20 @@ export default function SiteReportsPage() {
           throw new Error(data.error);
         }
 
-       setReports(Array.isArray(data?.data) ? data.data : []);
+        //safety check - we make sure the current request is still the active one
+        if(abortControllerRef.current === controller)
+          setReports(Array.isArray(data?.data) ? data.data : []);
 
       }catch(err){
         //ignore the error is the request was cancelled by the user intentionally
-        if(err.name !== 'AbortError')
+        if(err.name !== 'AbortError' && abortControllerRef.current === controller)
           setError(err.message);
       }finally{
-        setIsLoading(false);
+        //we stop the loading only if the current controller is still the active one
+        //otherwise, stopping another request that ran before this one but did not finish
+        //would be canceled and would also stop the loading of the new request
+        if(abortControllerRef.current === controller)
+          setIsLoading(false);
       }
     }
 
@@ -149,12 +170,15 @@ export default function SiteReportsPage() {
   }
 
   useEffect(() => {
-    //create controller that handles request cancelation
-    const controller = new AbortController();
-    fetchResponse(controller.signal);
+    //create controller for active request that handles request cancelation
+    fetchResponse();
     //clean up function - useEffect runs when something (which we set) changes
     //or when the component is destroyed - in both cases, if a request is running, we stop it
-    return () => controller.abort();
+    return () => {
+      if(abortControllerRef.current){
+        abortControllerRef.current.abort();
+      }
+    }
 
   }, [])
 
@@ -163,7 +187,11 @@ export default function SiteReportsPage() {
 
     <PageTransition>
 
-      <Modal isOpen={isFormOpen} onClose={handleCloseModal}>
+      <Modal
+        isOpen={isFormOpen}
+        onClose={handleCloseModal}
+        label={editingReport ? 'Editează raportul' : 'Raport zilnic de lucru'}
+      >
         <DailyReportForm 
           onSuccess={handleFormSuccess} 
           initialData={editingReport} //send the report data to the form - null or report to be edited data
@@ -244,8 +272,10 @@ export default function SiteReportsPage() {
                         : (report.echipa || 'Echipă nespecificată')}
                     </span>
                     <span className="text-meta text-ink-400">
-                      {Array.isArray(report.echipa) ? report.echipa.length : 1} {
-                        (Array.isArray(report.echipa) ? report.echipa.length : 1) === 1 ? 'lucrător' : 'lucrători'
+                      {Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0} {
+                        (Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0) === 1
+                          ? 'lucrător'
+                          : 'lucrători'
                       }
                     </span>
                 </span>
