@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+
+import Spinner from "../components/ui/Spinner.jsx";
 
 const FIELDS = [
   "parc", 
@@ -438,73 +441,87 @@ export default function DailyReportForm({
               </span>
             </div>
 
-            {workers.map((w, index) => (
-              <div
-                key={index}
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                <div
+            {/* Rândurile de lucrători se adaugă și se șterg des, deci intră și
+                ies prin colapsarea înălțimii — altfel lista sare brusc și nu se
+                vede care rând a dispărut. */}
+            <AnimatePresence initial={false}>
+              {workers.map((w, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, height: 0, marginTop: -9 }}
+                  animate={{ opacity: 1, height: h, marginTop: 0 }}
+                  exit={{ opacity: 0, height: 0, marginTop: -9 }}
+                  transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
                   style={{
-                    width: h,
-                    height: h,
-                    flex: "none",
-                    boxSizing: "border-box",
-                    border: "1px solid #e6e9ec",
-                    background: "#f7f8f9",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "#9aa3ac",
+                    gap: "8px",
+                    overflow: "hidden",
                   }}
                 >
-                  {index + 1}
-                </div>
-                <input
-                  type="text"
-                  className="esg-input"
-                  placeholder={`Nume și prenume lucrător ${index + 1}`}
-                  value={w}
-                  onChange={(e) => handleWorkerChange(index, e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    boxSizing: "border-box",
-                    border: "1px solid #d2d7dd",
-                    background: "#eef3fb",
-                    height: h,
-                    padding: "0 12px",
-                    fontSize: "14px",
-                    color: "#1b1e21",
-                    outline: 0,
-                  }}
-                />
-                {workers.length > minWorkers && (
-                  <button
-                    type="button"
-                    title="Șterge lucrătorul"
-                    onClick={() => removeWorker(index)}
-                    className="esg-btn-remove"
+                  <div
                     style={{
                       width: h,
                       height: h,
                       flex: "none",
                       boxSizing: "border-box",
                       border: "1px solid #e6e9ec",
-                      background: "#ffffff",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      fontSize: "17px",
-                      lineHeight: 1,
+                      background: "#f7f8f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "12px",
+                      fontWeight: 700,
                       color: "#9aa3ac",
                     }}
                   >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
+                    {index + 1}
+                  </div>
+                  <input
+                    type="text"
+                    className="esg-input"
+                    placeholder={`Nume și prenume lucrător ${index + 1}`}
+                    value={w}
+                    onChange={(e) => handleWorkerChange(index, e.target.value)}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      boxSizing: "border-box",
+                      border: "1px solid #d2d7dd",
+                      background: "#eef3fb",
+                      height: h,
+                      padding: "0 12px",
+                      fontSize: "14px",
+                      color: "#1b1e21",
+                      outline: 0,
+                    }}
+                  />
+                  {workers.length > minWorkers && (
+                    <button
+                      type="button"
+                      title="Șterge lucrătorul"
+                      onClick={() => removeWorker(index)}
+                      className="esg-btn-remove"
+                      style={{
+                        width: h,
+                        height: h,
+                        flex: "none",
+                        boxSizing: "border-box",
+                        border: "1px solid #e6e9ec",
+                        background: "#ffffff",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: "17px",
+                        lineHeight: 1,
+                        color: "#9aa3ac",
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
             <button
               type="button"
@@ -857,6 +874,37 @@ export default function DailyReportForm({
         </div>
 
         
+        {/* Eroarea de la server, deschisă prin colapsarea înălțimii ca să nu
+            împingă brusc butoanele în jos. `submitError` se golește la fiecare
+            încercare nouă, deci banda dispare de la sine la reîncercare. */}
+        <AnimatePresence initial={false}>
+          {submitError && (
+            <motion.div
+              key="submit-error"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <div
+                role="alert"
+                style={{
+                  margin: "0 32px 4px",
+                  padding: "12px 14px",
+                  borderLeft: "3px solid oklch(0.55 0.15 40)",
+                  background: "#fdf2ef",
+                  fontSize: "13px",
+                  lineHeight: 1.45,
+                  color: "#8a3b26",
+                }}
+              >
+                {submitError}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Footer Actions */}
         <div
           style={{
@@ -869,19 +917,33 @@ export default function DailyReportForm({
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: "12.5px", color: "#6b7480" }}>
-            {statusMessage}
-          </span>
+          {/* Cheia e chiar mesajul: la fiecare schimbare de text vechiul iese și
+              noul intră, ca să se observe că s-a întâmplat ceva — un contor care
+              se schimbă tăcut trece neobservat. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={statusMessage}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+              style={{ fontSize: "12.5px", color: toast ? "#23282d" : "#6b7480" }}
+            >
+              {statusMessage}
+            </motion.span>
+          </AnimatePresence>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
               type="button"
               onClick={resetForm}
+              disabled={isSubmitting}
               className="esg-btn-reset"
               style={{
                 height: "44px",
                 border: "1px solid #cfd5db",
                 background: "#ffffff",
-                cursor: "pointer",
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.6 : 1,
                 padding: "0 18px",
                 fontFamily: "inherit",
                 fontSize: "11px",
@@ -889,17 +951,23 @@ export default function DailyReportForm({
                 letterSpacing: "0.13em",
                 textTransform: "uppercase",
                 color: "#6b7480",
+                transition: "opacity 150ms ease",
               }}
             >
               Golește
             </button>
+            {/* Dezactivat cât ține cererea: altfel un dublu-clic trimite de două
+                ori același raport. Spinnerul e cel din restul aplicației. */}
             <button
               type="submit"
               className="esg-btn-submit"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
               style={{
                 height: "44px",
                 border: 0,
-                cursor: "pointer",
+                cursor: isSubmitting ? "wait" : "pointer",
+                opacity: isSubmitting ? 0.8 : 1,
                 padding: "0 26px",
                 background: accent,
                 color: "#ffffff",
@@ -908,8 +976,14 @@ export default function DailyReportForm({
                 fontWeight: 700,
                 letterSpacing: "0.13em",
                 textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                transition: "opacity 150ms ease",
               }}
             >
+              {isSubmitting && <Spinner />}
               {isSubmitting ? "Se trimite..." : submitLabel}
             </button>
           </div>

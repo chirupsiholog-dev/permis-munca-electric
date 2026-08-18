@@ -9,6 +9,7 @@ const NAV = [
   { to: '/', label: 'Acasă', end: true },
   { to: '/permise', label: 'Permise' },
   { to: '/arhiva', label: 'Arhivă' },
+  { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
 ]
 
 export default function Header({ user }) {

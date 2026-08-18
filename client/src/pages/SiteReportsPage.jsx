@@ -6,6 +6,7 @@ import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
 import SegmentedControl from '../components/ui/SegmentedControl.jsx'
+import Skeleton from '../components/ui/Skeleton.jsx'
 
 import Modal from '../components/ui/Modal.jsx'
 import DailyReportForm from './RaportOnSite.jsx'
@@ -29,8 +30,21 @@ const GRID = {
     '96px minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 96px 120px 120px 96px',
   gap: '16px',
   width: '100%',
-  minWidth: '1280px',
 }
+
+/**
+ * Învelișul tuturor rândurilor din interiorul cardului care derulează orizontal.
+ *
+ * `min-content` se calculează din chiar coloanele grilei — suma minimelor, plus
+ * spațiile dintre ele, plus paddingul — deci nu poate rămâne în urmă când se
+ * schimbă o coloană. O lățime scrisă de mână și rămasă prea mică taie exact
+ * invers decât pare: cutia se oprește mai devreme, iar celulele ies din fundal.
+ *
+ * Îl poartă un înveliș, nu fiecare rând în parte, ca antetul, rândurile, mesajele
+ * și subsolul să aibă toate aceeași lățime — altfel, derulat la dreapta, subsolul
+ * se termină înaintea tabelului și lasă o bandă albă.
+ */
+const TABLE_SHELL = { minWidth: 'min-content' }
 
 const COLUMNS = [
   { label: 'Data' },
@@ -44,6 +58,43 @@ const COLUMNS = [
   { label: 'Ment. preventivă', align: 'text-right' },
   { label: '' },
 ]
+
+const SKELETON_ROWS = 5
+
+/**
+ * Rând-fantomă pentru intervalul cât se încarcă datele.
+ *
+ * Folosește aceeași grilă și aceleași paddinguri verticale ca rândurile reale,
+ * ca antetul, scheletul și tabelul încărcat să fie aliniate și să nu sară nimic
+ * când sosesc datele. Lățimile barelor variază ușor de la un rând la altul, ca
+ * teancul să semene a conținut, nu a tipar repetat.
+ */
+function ReportRowSkeleton({ index = 0 }) {
+  const wide = index % 2 === 0
+
+  return (
+    <div
+      style={GRID}
+      className="items-center border-b border-line-faint px-[22px] py-[15px]"
+    >
+      <Skeleton className="h-[11px] w-[68px]" />
+
+      <Skeleton className={`h-[11px] ${wide ? 'w-[78%]' : 'w-[62%]'}`} />
+
+      <span className="flex min-w-0 flex-col gap-[6px]">
+        <Skeleton className={`h-[10px] ${wide ? 'w-[76%]' : 'w-[58%]'}`} />
+        <Skeleton className="h-[9px] w-[52px]" />
+      </span>
+
+      {/* Cele șase coloane numerice, aliniate la dreapta ca valorile reale. */}
+      {Array.from({ length: 6 }, (_, i) => (
+        <Skeleton key={i} className="ml-auto h-[11px] w-[32px]" />
+      ))}
+
+      <Skeleton className="h-[9px] w-[54px] justify-self-end" />
+    </div>
+  )
+}
 
 const formatData = (data) => {
   if (!data) return '-'; 
@@ -233,105 +284,148 @@ export default function SiteReportsPage() {
         </div>
 
         <Card className="overflow-x-auto">
-          <div
-            style={GRID}
-            className="items-center border-b border-line bg-surface-alt px-[22px] py-[13px] text-table-head font-bold uppercase tracking-label text-ink-400"
-          >
-            {COLUMNS.map((column, i) => (
-              <span key={i} className={column.align ?? ''}>
-                {column.label}
-              </span>
-            ))}
-          </div>
+          <div style={TABLE_SHELL}>
+            <div
+              style={GRID}
+              className="items-center border-b border-line bg-surface-alt px-[22px] py-[13px] text-table-head font-bold uppercase tracking-label text-ink-400"
+            >
+              {COLUMNS.map((column, i) => (
+                <span key={i} className={column.align ?? ''}>
+                  {column.label}
+                </span>
+              ))}
+            </div>
 
-          {isLoading ? (
-            <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
-              Se încarcă rapoartele...
-            </div>
-          ) : error ? (
-            <div className="px-[22px] py-[34px] text-center text-body-sm text-danger">
-              {error}
-            </div>
-          ) : (
-            <AnimatePresence initial={false}>
-              {rows.map((report) => (
+            {/* `mode="wait"` ține cele trei stări una după alta: scheletul iese
+                complet înainte să intre tabelul, altfel cele două s-ar suprapune
+                o clipă și ar da impresia de salt. */}
+            <AnimatePresence mode="wait" initial={false}>
+              {isLoading ? (
                 <motion.div
-                  key={report.id}
-                  layout
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+                    <ReportRowSkeleton key={i} index={i} />
+                  ))}
+                </motion.div>
+              ) : error ? (
+                <motion.div
+                  key="error"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  style={GRID}
-                  className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
+                  className="px-[22px] py-[34px] text-center text-body-sm text-danger"
                 >
-                  <span className="text-ink-600">{formatData(report.data)}</span>
-
-                  <span className="truncate font-bold text-ink">{report.parc}</span>
-
-                  <span className="flex min-w-0 flex-col gap-[3px]">
-                    <span className="truncate text-cta text-ink-700">
-                      {Array.isArray(report.echipa) 
-                        ? report.echipa.join(', ') 
-                        : (report.echipa || 'Echipă nespecificată')}
-                    </span>
-                    <span className="text-meta text-ink-400">
-                      {Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0} {
-                        (Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0) === 1
-                          ? 'lucrător'
-                          : 'lucrători'
-                      }
-                    </span>
-                  </span>
-
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.ore_lucrate)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.inductie_ore)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mediu_ore)}
-                  </span>
-
-                  <span
-                    className={`text-right font-mono text-cta ${
-                      report.near_miss > 0 ? 'font-bold text-danger' : 'text-ink-700'
-                    }`}
-                  >
-                    {formatNumar(report.near_miss)}
-                  </span>
-
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mentenanta_corectiva)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mentenanta_preventiva)}
-                  </span>
-
-                  <span className="justify-self-end">
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(report)}
-                      aria-label={`Editează raportul din ${formatData(report.data)} — ${report.parc}`}
-                      className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
-                    >
-                      Editează
-                    </button>
-                  </span>
+                  {error}
                 </motion.div>
-              ))}
+              ) : (
+                <motion.div
+                  key="content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <AnimatePresence initial={false}>
+                    {rows.map((report, i) => (
+                      <motion.div
+                        key={report.id}
+                        layout
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        // Decalaj mic, plafonat: primele rânduri intră în cascadă,
+                        // dar un tabel lung nu așteaptă secunde până se așază.
+                        transition={{ duration: 0.18, delay: Math.min(i, 8) * 0.025 }}
+                        style={GRID}
+                        className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
+                      >
+                        <span className="text-ink-600">{formatData(report.data)}</span>
+
+                        <span className="truncate font-bold text-ink">{report.parc}</span>
+
+                        <span className="flex min-w-0 flex-col gap-[3px]">
+                          <span className="truncate text-cta text-ink-700">
+                            {Array.isArray(report.echipa)
+                              ? report.echipa.join(', ')
+                              : (report.echipa || 'Echipă nespecificată')}
+                          </span>
+                          <span className="text-meta text-ink-400">
+                            {Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0} {
+                              (Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0) === 1
+                                ? 'lucrător'
+                                : 'lucrători'
+                            }
+                          </span>
+                        </span>
+
+                        <span className="text-right font-mono text-cta text-ink-700">
+                          {formatNumar(report.ore_lucrate)}
+                        </span>
+                        <span className="text-right font-mono text-cta text-ink-700">
+                          {formatNumar(report.inductie_ore)}
+                        </span>
+                        <span className="text-right font-mono text-cta text-ink-700">
+                          {formatNumar(report.mediu_ore)}
+                        </span>
+
+                        <span
+                          className={`text-right font-mono text-cta ${
+                            report.near_miss > 0 ? 'font-bold text-danger' : 'text-ink-700'
+                          }`}
+                        >
+                          {formatNumar(report.near_miss)}
+                        </span>
+
+                        <span className="text-right font-mono text-cta text-ink-700">
+                          {formatNumar(report.mentenanta_corectiva)}
+                        </span>
+                        <span className="text-right font-mono text-cta text-ink-700">
+                          {formatNumar(report.mentenanta_preventiva)}
+                        </span>
+
+                        <span className="justify-self-end">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(report)}
+                            aria-label={`Editează raportul din ${formatData(report.data)} — ${report.parc}`}
+                            className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
+                          >
+                            Editează
+                          </button>
+                        </span>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {rows.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.18 }}
+                      className="px-[22px] py-[34px] text-center text-body-sm text-ink-400"
+                    >
+                      Nu există rapoarte care corespund filtrului selectat.
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
             </AnimatePresence>
-          )}
 
-          {!isLoading && !error && rows.length === 0 && (
-            <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
-              Nu există rapoarte care corespund filtrului selectat.
+            <div className="flex items-center justify-between gap-4 px-[22px] py-[13px] text-meta text-ink-400">
+              {/* Cât se încarcă, contorul e o bară de lățimea textului pe care îl
+                  înlocuiește, ca subsolul să nu se redimensioneze la sosirea datelor. */}
+              {isLoading ? (
+                <Skeleton className="h-[10px] w-[104px]" />
+              ) : (
+                <span>{`${rows.length} din ${reports.length} rapoarte`}</span>
+              )}
             </div>
-          )}
-
-          <div className="flex items-center justify-between gap-4 px-[22px] py-[13px] text-meta text-ink-400">
-            <span>{`${rows.length} din ${reports.length} rapoarte`}</span>
           </div>
         </Card>
       </main>
