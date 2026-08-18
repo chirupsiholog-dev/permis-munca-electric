@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import { supabase } from "../lib/supabaseClient.js"
 import exceljs from 'exceljs';
+import crypto from 'node:crypto'
 
 interface DailyReport{
     parc: string,
@@ -170,6 +171,8 @@ export const downloadReports = async (req: Request, res: Response) => {
     try{
 
         const month = req.query.luna as string;
+        const year = req.query.an as string;
+        const parc = req.query.parc as string;
         
         let query = supabase.from('site_reports').select('data, parc, echipa, ore_lucrate, inductie_ore, mediu_ore, near_miss, mentenanta_corectiva, mentenanta_preventiva').order('data', {ascending: false});
         const{data: reports, error} = await query
@@ -183,10 +186,14 @@ export const downloadReports = async (req: Request, res: Response) => {
         }
 
         let filteredReports = reports;
-        if(month){
+        if(month && year){
             filteredReports = filteredReports.filter(report => {
-                return report.data && report.data.split('-')[1] === month;
+                return report.data && report.data.split('-')[1] === month && report.data.split('-')[0] === year;
             });
+        }
+
+        if(parc){
+            filteredReports = filteredReports.filter(r => r.parc === parc);
         }
 
         if(filteredReports.length === 0)
@@ -218,7 +225,7 @@ export const downloadReports = async (req: Request, res: Response) => {
             const parcReports = grouppedByParc.get(parc);
             const formattedReports = parcReports.map((report: Report) => ({
             ...report,
-            // Transformăm array-ul în string (ex: ["Ion", "Vasile"] -> "Ion, Vasile")
+            //transform array in 1 string
             echipa: Array.isArray(report.echipa) ? report.echipa.join(', ') : report.echipa
             }));
 
@@ -232,7 +239,7 @@ export const downloadReports = async (req: Request, res: Response) => {
 
         const dateString = new Date().toISOString().split('T')[0];
         res.setHeader('Content-Disposition', 
-            "attachment; filename="+`site_reports_${dateString}.xlsx`);
+            "attachment; filename="+`site_reports_${dateString}_${crypto.randomBytes(5).toString('hex')}.xlsx`);
         
         //write the file directly to the response stream
         await workbook.xlsx.write(res);

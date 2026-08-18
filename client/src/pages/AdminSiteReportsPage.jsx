@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -49,7 +49,6 @@ const TABLE_SHELL = { minWidth: 'min-content' }
 
 const COLUMNS = [
   { label: 'Data' },
-  { label: 'Raportat de' },
   { label: 'Parc' },
   { label: 'Echipă' },
   { label: 'Ore lucrate', align: 'text-right' },
@@ -60,99 +59,6 @@ const COLUMNS = [
   { label: 'Ment. preventivă', align: 'text-right' },
 ]
 
-const PLACEHOLDER_REPORTS = [
-  {
-    id: 1,
-    utilizator: 'Ionescu Andrei',
-    parc: 'Parc fotovoltaic Ianca',
-    echipa: ['Ionescu Andrei', 'Marin Vlad', 'Dobre Cristian'],
-    data: '2026-08-14',
-    ore_lucrate: 24,
-    inductie_ore: 2,
-    mediu_ore: 1,
-    near_miss: 0,
-    mentenanta_corectiva: 6,
-    mentenanta_preventiva: 4,
-  },
-  {
-    id: 2,
-    utilizator: 'Popa Mihai',
-    parc: 'Parc eolian Fântânele',
-    echipa: ['Popa Mihai', 'Radu Ștefan'],
-    data: '2026-08-13',
-    ore_lucrate: 16,
-    inductie_ore: 1,
-    mediu_ore: 0.5,
-    near_miss: 1,
-    mentenanta_corectiva: 4,
-    mentenanta_preventiva: 2,
-  },
-  {
-    id: 3,
-    utilizator: 'Ionescu Andrei',
-    parc: 'Parc fotovoltaic Ianca',
-    echipa: ['Ionescu Andrei', 'Dobre Cristian'],
-    data: '2026-08-12',
-    ore_lucrate: 18,
-    inductie_ore: 2,
-    mediu_ore: 1,
-    near_miss: 0,
-    mentenanta_corectiva: 3,
-    mentenanta_preventiva: 5,
-  },
-  {
-    id: 4,
-    utilizator: 'Stan Bogdan',
-    parc: 'Parc eolian Cogealac',
-    echipa: ['Stan Bogdan', 'Neagu Alexandru', 'Toma Răzvan', 'Ilie Cătălin'],
-    data: '2026-08-04',
-    ore_lucrate: 32,
-    inductie_ore: 4,
-    mediu_ore: 2,
-    near_miss: 2,
-    mentenanta_corectiva: 8,
-    mentenanta_preventiva: 6,
-  },
-  {
-    id: 5,
-    utilizator: 'Popa Mihai',
-    parc: 'Parc eolian Fântânele',
-    echipa: ['Popa Mihai', 'Radu Ștefan', 'Stan Bogdan'],
-    data: '2026-07-28',
-    ore_lucrate: 21,
-    inductie_ore: 1.5,
-    mediu_ore: 1,
-    near_miss: 0,
-    mentenanta_corectiva: 5,
-    mentenanta_preventiva: 3,
-  },
-  {
-    id: 6,
-    utilizator: 'Stan Bogdan',
-    parc: 'Parc eolian Cogealac',
-    echipa: ['Stan Bogdan', 'Toma Răzvan'],
-    data: '2026-07-15',
-    ore_lucrate: 14,
-    inductie_ore: 1,
-    mediu_ore: 0.5,
-    near_miss: 0,
-    mentenanta_corectiva: 2,
-    mentenanta_preventiva: 7,
-  },
-  {
-    id: 7,
-    utilizator: 'Marin Vlad',
-    parc: 'Parc fotovoltaic Ianca',
-    echipa: ['Marin Vlad', 'Dobre Cristian'],
-    data: '2026-06-30',
-    ore_lucrate: 12,
-    inductie_ore: 2,
-    mediu_ore: 1,
-    near_miss: 1,
-    mentenanta_corectiva: 4,
-    mentenanta_preventiva: 1,
-  },
-]
 
 const TOATE = 'toate'
 
@@ -188,14 +94,15 @@ const lunaLabel = (key) => {
 }
 
 export default function AdminSiteReportsPage() {
-  const [reports] = useState(PLACEHOLDER_REPORTS)
+  const [reports, setReports] = useState([])
+
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const [parc, setParc] = useState(TOATE)
   const [luna, setLuna] = useState(TOATE)
   const [query, setQuery] = useState('')
 
-  // Filtrele se construiesc din datele primite, nu dintr-o listă fixă: doar
-  // parcurile și lunile care au rapoarte au ce selecta.
   const parcOptions = useMemo(
     () => [
       { value: TOATE, label: 'Toate' },
@@ -204,7 +111,6 @@ export default function AdminSiteReportsPage() {
     [reports],
   )
 
-  // Descrescător: luna curentă e cea căutată cel mai des, deci stă prima.
   const lunaOptions = useMemo(
     () =>
       [...new Set(reports.map((r) => lunaKey(r.data)))]
@@ -230,8 +136,130 @@ export default function AdminSiteReportsPage() {
       })
   }, [reports, parc, luna, query])
 
-  const handleDownloadExcel = () => {
-    // TODO: descărcarea propriu-zisă, cu luna selectată ca parametru.
+  //we keep the current active controller in a reference
+  const abortControllerRef = useRef(null);
+
+  const fetchResponse = async() => {
+
+      //create controller for active request that handles request cancelation
+      const controller = new AbortController();
+
+      //if there is an active request (controller)
+      if(abortControllerRef.current){
+        //stop it before we start another request to avoid concurrency problems, like an old request overwriting the latest request
+        abortControllerRef.current.abort();
+      }
+      //save the new controller before starting the request
+      abortControllerRef.current = controller;
+      
+      const jwt = localStorage.getItem('token');
+
+      try{
+
+        setIsLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/site-reports/admin", {method: 'GET', headers: {
+          Authorization: `Bearer ${jwt}`},
+          //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
+          //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
+          signal: controller.signal
+        });
+
+        if(!res.ok)
+          throw new Error(`A apărut o eroare la descărcarea datelor (${res.status})`)
+
+        const data = await res.json();
+
+        if(data.error){
+          throw new Error(data.error);
+        }
+
+        //safety check - we make sure the current request is still the active one
+        if(abortControllerRef.current === controller)
+          setReports(Array.isArray(data?.data) ? data.data : []);
+
+      }catch(err){
+        //ignore the error is the request was cancelled by the user intentionally
+        if(err.name !== 'AbortError' && abortControllerRef.current === controller)
+          setError(err.message);
+      }finally{
+        //we stop the loading only if the current controller is still the active one
+        //otherwise, stopping another request that ran before this one but did not finish
+        //would be canceled and would also stop the loading of the new request
+        if(abortControllerRef.current === controller)
+          setIsLoading(false);
+      }
+    }
+
+  useEffect(() => {
+    fetchResponse();
+    return () => {
+      if(abortControllerRef.current)
+        abortControllerRef.current.abort();
+    }
+  }, [])
+
+  const handleDownloadExcel = async() => {
+    try{
+
+      setError(null);
+
+      const jwt = localStorage.getItem('token');
+
+      let url = '/api/site-reports/admin/download';
+      if(luna !== TOATE && parc !== TOATE){
+        const tokens = luna.split('-');
+        const year = tokens[0];
+        const month = tokens[1];
+        url += `?luna=${month}&an=${year}&parc=${parc}`;
+      }else if (luna !== TOATE){
+        const tokens = luna.split('-');
+        const year = tokens[0];
+        const month = tokens[1];
+        url += `?luna=${month}&an=${year}`;
+      }else if (parc !== TOATE){
+        url += `?parc=${parc}`;
+      }
+      
+      const res = await fetch(url, {method: 'GET', headers: {Authorization: `Bearer ${jwt}`}})
+      if(!res.ok){
+        if(res.status === 404){
+            throw new Error('Nu există rapoarte pentru luna selectată.');
+        }
+        throw new Error(`Eroare la descărcarea fișierului (${res.status})`);
+      }
+
+      const blob = await res.blob();
+
+      //fallback name
+      let filename = `Rapoarte_${luna !== TOATE ? luna : 'Toate'}.xlsx`;
+      //try to extract filename from content-disposition header
+      const disposition = res.headers.get('Content-Disposition');
+      if (disposition && disposition.includes('filename=')) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) { 
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      //create an invisible url
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    }catch(err){
+      alert(err.message);
+    }
+    
+    
   }
 
   return (
@@ -243,8 +271,6 @@ export default function AdminSiteReportsPage() {
             subtitle="Toate rapoartele zilnice trimise de echipe, cu orele-om și indicatorii HSE raportați."
           />
 
-          {/* Un tabel gol nu are ce exporta, deci butonul nu se poate apăsa cât
-              filtrele nu întorc niciun rând. */}
           <Button onClick={handleDownloadExcel} disabled={rows.length === 0}>
             Descarcă Excel
           </Button>
@@ -277,8 +303,6 @@ export default function AdminSiteReportsPage() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              // Placeholderul trebuie să încapă întreg: la 13.5px, textul de
-              // dinainte depășea caseta și se tăia la ultimul cuvânt.
               placeholder="Caută utilizator, parc sau lucrător"
               aria-label="Caută rapoarte după utilizator, parc sau membru al echipei"
               className="h-10 w-[340px] max-w-full border border-line-strong bg-surface px-3 text-body-sm text-ink-900 outline-0 transition-colors duration-150 focus:bg-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -299,69 +323,56 @@ export default function AdminSiteReportsPage() {
               ))}
             </div>
 
-            <AnimatePresence initial={false}>
-              {rows.map((report) => (
-                <motion.div
-                  key={report.id}
-                  layout
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  style={GRID}
-                  className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
-                >
-                  <span className="text-ink-600">{formatData(report.data)}</span>
-
-                  <span className="truncate text-cta text-ink-700">{report.utilizator ?? '—'}</span>
-
-                  <span className="truncate font-bold text-ink">{report.parc}</span>
-
-                  <span className="flex min-w-0 flex-col gap-[3px]">
-                    <span className="truncate text-cta text-ink-700">
-                      {Array.isArray(report.echipa)
-                        ? report.echipa.join(', ')
-                        : report.echipa || 'Echipă nespecificată'}
-                    </span>
-                    <span className="text-meta text-ink-400">
-                      {Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0}{' '}
-                      {(Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0) ===
-                      1
-                        ? 'lucrător'
-                        : 'lucrători'}
-                    </span>
-                  </span>
-
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.ore_lucrate)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.inductie_ore)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mediu_ore)}
-                  </span>
-
-                  {/* Un near miss raportat este singura valoare care merită scoasă în evidență. */}
-                  <span
-                    className={`text-right font-mono text-cta ${
-                      report.near_miss > 0 ? 'font-bold text-danger' : 'text-ink-700'
-                    }`}
+            {isLoading ? (
+              <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
+                Se încarcă rapoartele...
+              </div>
+            ) : error ? (
+              <div className="px-[22px] py-[34px] text-center text-body-sm text-danger">
+                {error}
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {rows.map((report) => (
+                  <motion.div
+                    key={report.id}
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    style={GRID}
+                    className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
                   >
-                    {formatNumar(report.near_miss)}
-                  </span>
+                    <span className="text-ink-600">{formatData(report.data)}</span>
+                    <span className="truncate font-bold text-ink">{report.parc}</span>
+                    <span className="flex min-w-0 flex-col gap-[3px]">
+                      <span className="truncate text-cta text-ink-700">
+                        {Array.isArray(report.echipa)
+                          ? report.echipa.join(', ')
+                          : report.echipa || 'Echipă nespecificată'}
+                      </span>
+                      <span className="text-meta text-ink-400">
+                        {Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0}{' '}
+                        {(Array.isArray(report.echipa) ? report.echipa.length : report.echipa ? 1 : 0) === 1
+                          ? 'lucrător'
+                          : 'lucrători'}
+                      </span>
+                    </span>
+                    <span className="text-right font-mono text-cta text-ink-700">{formatNumar(report.ore_lucrate)}</span>
+                    <span className="text-right font-mono text-cta text-ink-700">{formatNumar(report.inductie_ore)}</span>
+                    <span className="text-right font-mono text-cta text-ink-700">{formatNumar(report.mediu_ore)}</span>
+                    <span className={`text-right font-mono text-cta ${report.near_miss > 0 ? 'font-bold text-danger' : 'text-ink-700'}`}>
+                      {formatNumar(report.near_miss)}
+                    </span>
+                    <span className="text-right font-mono text-cta text-ink-700">{formatNumar(report.mentenanta_corectiva)}</span>
+                    <span className="text-right font-mono text-cta text-ink-700">{formatNumar(report.mentenanta_preventiva)}</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
 
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mentenanta_corectiva)}
-                  </span>
-                  <span className="text-right font-mono text-cta text-ink-700">
-                    {formatNumar(report.mentenanta_preventiva)}
-                  </span>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {rows.length === 0 && (
+            {!isLoading && !error && rows.length === 0 && (
               <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
                 Nu există rapoarte care corespund filtrelor selectate.
               </div>
@@ -369,9 +380,6 @@ export default function AdminSiteReportsPage() {
 
             <div className="flex items-center justify-between gap-4 px-[22px] py-[13px] text-meta text-ink-400">
               <span>{`${rows.length} din ${reports.length} rapoarte`}</span>
-              <span className="uppercase tracking-status">
-                Orele se raportează ca ore-om (durată × persoane)
-              </span>
             </div>
           </div>
         </Card>
