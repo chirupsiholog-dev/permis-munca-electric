@@ -45,6 +45,7 @@ export default function Modal({ isOpen, onClose, label, labelledBy, children }) 
         container.focus()
         return
       }
+
       const firstElement = focusableElements[0]
       const lastElement = focusableElements[focusableElements.length - 1]
       const activeElement = document.activeElement
@@ -60,13 +61,6 @@ export default function Modal({ isOpen, onClose, label, labelledBy, children }) 
           e.preventDefault()
           lastElement.focus()
         }
-        return
-      }
-
-      if (activeElement === lastElement) {
-        e.preventDefault()
-        firstElement.focus()
-      }
         return
       }
 

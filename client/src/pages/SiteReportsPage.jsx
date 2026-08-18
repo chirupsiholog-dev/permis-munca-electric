@@ -47,7 +47,7 @@ const COLUMNS = [
 const formatData = (data) => {
   if (!data) return '-'; 
   try {
-    const dateStr = String(data).includes('T') ? data : `${data}T00:00:00.000Z`;
+    const dateStr = String(data).includes('T') ? data : `${data}T00:00:00`;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return data; 
     return d.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -110,6 +110,10 @@ export default function SiteReportsPage() {
         //stop it before we start another request to avoid concurrency problems, like an old request overwriting the latest request
         abortControllerRef.current.abort();
       }
+      //save the new controller before starting the request
+      abortControllerRef.current = controller;
+
+      const jwt = localStorage.getItem('token');
 
       const jwt = localStorage.getItem('token');
       try{

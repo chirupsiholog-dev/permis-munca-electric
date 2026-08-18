@@ -144,13 +144,25 @@ export default function DailyReportForm({
       "mentenantaPreventiva",
     ];
 
-    for(const key of numericKeys){
+    for (const key of numericKeys) {
+
       const normalizedString = String(vals[key] ?? "").trim().replace(",", ".");
       const numValue = Number(normalizedString);
 
+      const label = key.replace(/([A-Z])/g, " $1").toLowerCase();
+
       if (!Number.isFinite(numValue)) {
-        const label = key.replace(/([A-Z])/g, " $1").toLowerCase(); //inductieOre becomes Inductie Ore for example
         flash(`Valoare invalidă la câmpul: ${label}. Folosiți doar cifre.`);
+        return;
+      }
+
+      if (numValue < 0) {
+        flash(`Valoarea pentru ${label} nu poate fi negativă.`);
+        return;
+      }
+
+      if (key === "nearMiss" && !Number.isInteger(numValue)) {
+        flash(`Câmpul near miss reprezintă evenimente și trebuie să fie un număr întreg.`);
         return;
       }
 

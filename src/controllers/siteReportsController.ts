@@ -29,10 +29,13 @@ function isValidReport(body: any): body is DailyReport {
   if(!isValidDateString(body.data))
     return false;
 
-  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre', 'nearMiss', 'mentenantaPreventiva', 'mentenantaCorectiva'] as const) {
+  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre', 'mentenantaPreventiva', 'mentenantaCorectiva'] as const) {
     const v = body[field];
     if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return false;
   }
+
+  if (typeof body.nearMiss !== 'number' || !Number.isInteger(body.nearMiss) || body.nearMiss < 0)
+    return false;
 
   return true;
 }
