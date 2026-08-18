@@ -14,6 +14,8 @@ const FIELDS = [
 export default function DailyReportForm({
   title = "Raport zilnic de lucru",
   submitLabel = "Trimite raportul",
+  onSuccess,
+  initialData,
   showHelp = true,
   markRequired = true,
   minWorkers = 2,
@@ -28,6 +30,45 @@ export default function DailyReportForm({
 
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if(initialData){
+      let formattedDate = ""; //comes as yyyy-mm-dd from the db, textbox expects dd-mm-yyyy
+      if (initialData.data) {
+        const parts = initialData.data.split("-"); 
+        if (parts.length === 3) {
+          formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`; // "17/08/2026"
+        }
+      }
+
+      setVals({
+        parc: initialData.parc || '',
+        data: formattedDate,
+        oreLucrate: initialData.ore_lucrate || 0,
+        inductieOre: initialData.inductie_ore || 0,
+        mediuOre: initialData.mediu_ore || 0,
+        nearMiss: initialData.near_miss || 0,
+        mentenantaCorectiva: initialData.mentenanta_corectiva || 0,
+        mentenantaPreventiva: initialData.mentenanta_preventiva || 0,
+      })
+
+      if(Array.isArray(initialData.echipa)){
+        setWorkers(initialData.echipa)
+      }else if (typeof initialData.echipa === 'string'){//fallback in case db returns a string instead of an array{
+        setWorkers(initialData.echipa.split(",").map(w => w.trim()));
+      }
+    }else{
+      setVals({}) //empty form
+      setWorkers(Array(minWorkers).fill(""));
+    }
+  }, [initialData, minWorkers])
+
+  const parseDataToIso = (dateStr) => {
+    if (!dateStr) return "";
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return dateStr;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  };
 
   const flash = (msg) => {
     setToast(msg);
@@ -79,7 +120,7 @@ export default function DailyReportForm({
     flash("Formular golit.");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (missing) {
       flash("Completează toate câmpurile și cel puțin un lucrător.");
@@ -91,7 +132,7 @@ export default function DailyReportForm({
     }
 
     setSubmitError(null);
-    setIsSubmitting(false);
+    setIsSubmitting(true);
 
     try{
       const jwt = localStorage.getItem('token');
@@ -99,17 +140,55 @@ export default function DailyReportForm({
         parc: vals.parc,
         echipa: workers.filter((w) => w.trim() !== ''),
         data: parseDataToIso(vals.data),
-        oreLucrate: Number(vals.ore),
-        inductieOre: Number(vals.induction),
-        mediuOre: Number(vals.mediu),
+        oreLucrate: Number(vals.oreLucrate),
+        inductieOre: Number(vals.inductieOre),
+        mediuOre: Number(vals.mediuOre),
         nearMiss: Number(vals.nearMiss),
         mentenantaCorectiva: Number(vals.mentenantaCorectiva),
         mentenantaPreventiva: Number(vals.mentenantaPreventiva),
       }
+
+      let res;
+      if(initialData)
+        res = await fetch(`/api/site-reports/${initialData.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`
+        }
+      })
+      else{
+        res = await fetch('/api/site-reports', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`
+        }
+        })
+      }
+      
+
+      if(!res.ok){
+        throw new Error(`A apărut o eroare la trimiterea raportului (${res.status})`);
+      }
+
+      const data = await res.json();
+
+      if(data.error){
+        throw new Error(data.error);
+      }
+
+      initialData?flash(`Raport modificat pentru ${vals.data} — ${namedWorkers} lucrători.`):flash(`Raport trimis pentru ${vals.data} — ${namedWorkers} lucrători.`)
+      onSuccess?.();
+
+    }catch(err){
+      setSubmitError(err.message);
+      flash(err.message);
+    }finally{
+      setIsSubmitting(false);
     }
-
-    flash(`Raport trimis pentru ${vals.data} — ${namedWorkers} lucrători.`);
-
 
   };
 
@@ -538,8 +617,8 @@ export default function DailyReportForm({
                 className="esg-input"
                 inputMode="decimal"
                 placeholder="ore, ex. 2"
-                value={vals.inductionOre ?? ""}
-                onChange={(e) => handleFieldChange("inductionOre", e.target.value)}
+                value={vals.inductieOre ?? ""}
+                onChange={(e) => handleFieldChange("inductieOre", e.target.value)}
                 style={{
                   boxSizing: "border-box",
                   width: "100%",
@@ -793,7 +872,7 @@ export default function DailyReportForm({
                 textTransform: "uppercase",
               }}
             >
-              {submitLabel}
+              {isSubmitting ? "Se trimite..." : submitLabel}
             </button>
           </div>
         </div>

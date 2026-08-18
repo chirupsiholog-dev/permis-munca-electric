@@ -71,6 +71,7 @@ export default function SiteReportsPage() {
   const [query, setQuery] = useState('')
 
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingReport, setEditingReport] = useState(null);
 
 
   const parcOptions = useMemo(
@@ -88,26 +89,14 @@ export default function SiteReportsPage() {
       .filter((r) => parc === 'toate' || r.parc === parc)
       .filter((r) => {
         if (!q) return true
-        const searchString = `${r.parc} ${(r.echipa || []).join(' ')}`
+        const searchString = `${r.parc} ${Array.isArray(r.echipa) ? r.echipa.join(' ') : (r.echipa || '')}`        
         return normalizeText(searchString).includes(q)
       })
   }, [reports, parc, query])
 
-  const handleAdd = () => {
-    setIsFormOpen(true);
-  }
 
-  const handleEdit = (report) => {
-    // TODO: deschide formularul precompletat cu `report` (PUT /api/site-reports/:id).
-  }
-
-  useEffect(() => {
-    //create controller that handles request cancelation
-    const controller = new AbortController();
-
-    const jwt = localStorage.getItem('token');
-
-    const fetchResponse = async() => {
+  const fetchResponse = async(signal) => {
+      const jwt = localStorage.getItem('token');
       try{
 
         setIsLoading(true);
@@ -117,7 +106,7 @@ export default function SiteReportsPage() {
           Authorization: `Bearer ${jwt}`},
           //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
           //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
-          signal: controller.signal
+          signal: signal
         });
 
         if(!res.ok)
@@ -140,8 +129,29 @@ export default function SiteReportsPage() {
       }
     }
 
-    fetchResponse();
+  const handleAdd = () => {
+    setEditingReport(null);
+    setIsFormOpen(true);
+  }
 
+  const handleFormSuccess = () => {
+    fetchResponse();
+  }
+
+  const handleEdit = (report) => {
+    setEditingReport(report);
+    setIsFormOpen(true);
+  }
+
+  const handleCloseModal = () => {
+    setIsFormOpen(false);
+    setTimeout(() => setEditingReport(null), 200); 
+  }
+
+  useEffect(() => {
+    //create controller that handles request cancelation
+    const controller = new AbortController();
+    fetchResponse(controller.signal);
     //clean up function - useEffect runs when something (which we set) changes
     //or when the component is destroyed - in both cases, if a request is running, we stop it
     return () => controller.abort();
@@ -153,8 +163,13 @@ export default function SiteReportsPage() {
 
     <PageTransition>
 
-      <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)}>
-        <DailyReportForm />
+      <Modal isOpen={isFormOpen} onClose={handleCloseModal}>
+        <DailyReportForm 
+          onSuccess={handleFormSuccess} 
+          initialData={editingReport} //send the report data to the form - null or report to be edited data
+          title={editingReport ? "Editează raportul" : "Raport zilnic de lucru"}
+          submitLabel={editingReport ? "Salvează modificările" : "Trimite raportul"}
+        />
       </Modal>
 
       <main className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-5 px-7 pb-[72px] pt-10">
@@ -224,12 +239,16 @@ export default function SiteReportsPage() {
 
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <span className="truncate text-cta text-ink-700">
-                      {(report.echipa || []).join(', ')}
+                      {Array.isArray(report.echipa) 
+                        ? report.echipa.join(', ') 
+                        : (report.echipa || 'Echipă nespecificată')}
                     </span>
                     <span className="text-meta text-ink-400">
-                      {report.echipa?.length || 0} {report.echipa?.length === 1 ? 'lucrător' : 'lucrători'}
+                      {Array.isArray(report.echipa) ? report.echipa.length : 1} {
+                        (Array.isArray(report.echipa) ? report.echipa.length : 1) === 1 ? 'lucrător' : 'lucrători'
+                      }
                     </span>
-                  </span>
+                </span>
 
                   <span className="text-right font-mono text-cta text-ink-700">
                     {formatNumar(report.ore_lucrate)}
