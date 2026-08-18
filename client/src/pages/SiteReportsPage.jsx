@@ -128,8 +128,8 @@ export default function SiteReportsPage() {
         if(data.error){
           throw new Error(data.error);
         }
-        
-        setReports(data.data);
+
+       setReports(Array.isArray(data?.data) ? data.data : []);
 
       }catch(err){
         //ignore the error is the request was cancelled by the user intentionally

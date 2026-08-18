@@ -105,7 +105,6 @@ export const getReports = async(req: Request, res: Response) => {
         return res.status(500).json({error: 'Internal server error'});
     }
 
-    console.log(data);
     return res.status(200).json({success: true, data: data})
 }
 

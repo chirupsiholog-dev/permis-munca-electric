@@ -1,16 +1,72 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 
 export default function Modal({ isOpen, onClose, children }) {
+  const containerRef = useRef(null)
+  const previousFocusedRef = useRef(null)
+
   useEffect(() => {
     if (!isOpen) return
-    const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
+
+    previousFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+    const focusId = requestAnimationFrame(() => {
+      containerRef.current?.focus()
+    })
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+
+      if (e.key !== 'Tab') return
+
+      const container = containerRef.current
+      if (!container) return
+
+      const focusableElements = Array.from(
+        container.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [contenteditable], [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element instanceof HTMLElement && !element.hasAttribute('disabled'))
+
+      if (focusableElements.length === 0) {
+        e.preventDefault()
+        container.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      const activeElement = document.activeElement
+
+      if (e.shiftKey) {
+        if (activeElement === firstElement || activeElement === container) {
+          e.preventDefault()
+          lastElement.focus()
+        }
+        return
+      }
+
+      if (activeElement === lastElement) {
+        e.preventDefault()
+        firstElement.focus()
+      }
+    }
+
     document.addEventListener('keydown', onKeyDown)
     document.body.style.overflow = 'hidden'
+
     return () => {
+      cancelAnimationFrame(focusId)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = ''
+      if (previousFocusedRef.current?.isConnected) {
+        previousFocusedRef.current.focus()
+      }
     }
   }, [isOpen, onClose])
 
@@ -36,6 +92,10 @@ export default function Modal({ isOpen, onClose, children }) {
           }}
         >
           <motion.div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}

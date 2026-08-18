@@ -103,7 +103,7 @@ export default function DailyReportForm({
         inductieOre: Number(vals.induction),
         mediuOre: Number(vals.mediu),
         nearMiss: Number(vals.nearMiss),
-        mentenantaColectiva: Number(vals.mentenantaCorectiva),
+        mentenantaCorectiva: Number(vals.mentenantaCorectiva),
         mentenantaPreventiva: Number(vals.mentenantaPreventiva),
       }
     }
@@ -494,7 +494,7 @@ export default function DailyReportForm({
                 className="esg-input"
                 inputMode="decimal"
                 placeholder="ore-om, ex. 24"
-                value={vals.ore ?? ""}
+                value={vals.oreLucrate ?? ""}
                 onChange={(e) => handleFieldChange("oreLucrate", e.target.value)}
                 style={{
                   boxSizing: "border-box",
@@ -538,7 +538,7 @@ export default function DailyReportForm({
                 className="esg-input"
                 inputMode="decimal"
                 placeholder="ore, ex. 2"
-                value={vals.induction ?? ""}
+                value={vals.inductionOre ?? ""}
                 onChange={(e) => handleFieldChange("inductionOre", e.target.value)}
                 style={{
                   boxSizing: "border-box",
@@ -582,7 +582,7 @@ export default function DailyReportForm({
                 className="esg-input"
                 inputMode="decimal"
                 placeholder="ore, ex. 1"
-                value={vals.mediu ?? ""}
+                value={vals.mediuOre ?? ""}
                 onChange={(e) => handleFieldChange("mediuOre", e.target.value)}
                 style={{
                   boxSizing: "border-box",
