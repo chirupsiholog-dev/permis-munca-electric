@@ -28,6 +28,7 @@ const GRID = {
   gridTemplateColumns:
     '96px minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 96px 120px 120px 96px',
   gap: '16px',
+  width: '100%',
   minWidth: '1280px',
 }
 
@@ -112,10 +113,9 @@ export default function SiteReportsPage() {
       }
       //save the new controller before starting the request
       abortControllerRef.current = controller;
-
+      
       const jwt = localStorage.getItem('token');
 
-      const jwt = localStorage.getItem('token');
       try{
 
         setIsLoading(true);
@@ -282,7 +282,7 @@ export default function SiteReportsPage() {
                           : 'lucrători'
                       }
                     </span>
-                </span>
+                  </span>
 
                   <span className="text-right font-mono text-cta text-ink-700">
                     {formatNumar(report.ore_lucrate)}
