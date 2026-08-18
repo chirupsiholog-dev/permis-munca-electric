@@ -1,5 +1,6 @@
 import type { Request, Response } from "express"
 import { supabase } from "../lib/supabaseClient.js"
+import exceljs from 'exceljs';
 
 interface DailyReport{
     parc: string,
@@ -150,4 +151,93 @@ export const editReport = async (req: Request, res: Response) => {
 
     return res.status(200).json({success:true, message: 'Raport editat cu success'})
 
+}
+
+interface Report{
+    data: string,
+    parc: string,
+    echipa: string[],
+    ore_lucru: number,
+    inductie_ore: number,
+    mediu_ore: number,
+    near_miss: number,
+    mentenanta_corectiva: number,
+    mentenanta_preventiva: number
+}
+
+export const downloadReports = async (req: Request, res: Response) => {
+
+    try{
+
+        const month = req.query.luna as string;
+        
+        let query = supabase.from('site_reports').select('data, parc, echipa, ore_lucrate, inductie_ore, mediu_ore, near_miss, mentenanta_corectiva, mentenanta_preventiva').order('data', {ascending: false});
+        const{data: reports, error} = await query
+
+        if(error){
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        if (!reports || reports.length === 0) {
+            return res.status(404).json({ error: 'Nu există rapoarte pentru perioada selectată.' });
+        }
+
+        let filteredReports = reports;
+        if(month){
+            filteredReports = filteredReports.filter(report => {
+                return report.data && report.data.split('-')[1] === month;
+            });
+        }
+
+        const grouppedByParc = new Map();
+        for(const report of filteredReports){
+            if(!grouppedByParc.has(report.parc))
+                grouppedByParc.set(report.parc, []);
+            grouppedByParc.get(report.parc).push(report);
+        }
+
+        let workbook = new exceljs.Workbook();
+        for(const parc of grouppedByParc.keys()){
+            const safeSheetName = parc.substring(0, 31).replace(/[\\/*?:\[\]]/g, '');
+            let worksheet = workbook.addWorksheet(`${safeSheetName}`);
+            worksheet.columns = [
+                { header: 'Data', key: 'data', width: 15 },
+                { header: 'Parc', key: 'parc', width: 25 },
+                { header: 'Echipă', key: 'echipa', width: 35 },
+                { header: 'Ore lucrate', key: 'ore_lucrate', width: 15 },
+                { header: 'Inducție', key: 'inductie_ore', width: 15 },
+                { header: 'Mediu', key: 'mediu_ore', width: 15 },
+                { header: 'Near miss', key: 'near_miss', width: 15 },
+                { header: 'Ment. corectivă', key: 'mentenanta_corectiva', width: 20 },
+                { header: 'Ment. preventivă', key: 'mentenanta_preventiva', width: 20 }
+            ];
+
+            const parcReports = grouppedByParc.get(parc);
+            const formattedReports = parcReports.map((report: Report) => ({
+            ...report,
+            // Transformăm array-ul în string (ex: ["Ion", "Vasile"] -> "Ion, Vasile")
+            echipa: Array.isArray(report.echipa) ? report.echipa.join(', ') : report.echipa
+            }));
+
+            worksheet.addRows(formattedReports);
+        }
+        //so the frontend fetch can see the Content-Disposition header
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+        res.setHeader("Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+        const dateString = new Date().toISOString().split('T')[0];
+        res.setHeader('Content-Disposition', 
+            "attachment; filename="+`site_reports_${dateString}.xlsx`);
+        
+        //write the file directly to the response stream
+        await workbook.xlsx.write(res);
+        res.status(200).end();
+
+    }catch(err){
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Eroare la generarea fișierului Excel.' });
+        }
+    }
 }
