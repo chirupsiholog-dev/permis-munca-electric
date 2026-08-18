@@ -157,7 +157,7 @@ interface Report{
     data: string,
     parc: string,
     echipa: string[],
-    ore_lucru: number,
+    ore_lucrate: number,
     inductie_ore: number,
     mediu_ore: number,
     near_miss: number,
@@ -179,7 +179,7 @@ export const downloadReports = async (req: Request, res: Response) => {
         }
 
         if (!reports || reports.length === 0) {
-            return res.status(404).json({ error: 'Nu există rapoarte pentru perioada selectată.' });
+            return res.status(404).json({ error: 'Nu există rapoarte' });
         }
 
         let filteredReports = reports;
@@ -188,6 +188,9 @@ export const downloadReports = async (req: Request, res: Response) => {
                 return report.data && report.data.split('-')[1] === month;
             });
         }
+
+        if(filteredReports.length === 0)
+            return res.status(404).json({ error: 'Nu există rapoarte pentru perioada selectată' });
 
         const grouppedByParc = new Map();
         for(const report of filteredReports){
