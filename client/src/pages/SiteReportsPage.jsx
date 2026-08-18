@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -7,15 +7,15 @@ import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
 import SegmentedControl from '../components/ui/SegmentedControl.jsx'
 
+import Modal from '../components/ui/Modal.jsx'
+import DailyReportForm from './RaportOnSite.jsx'
+
 /**
  * Singura pagină a utilizatorilor non-admin: rapoartele on-site proprii.
  *
  * Coloanele urmăresc exact corpul cererii POST din siteReportsController
  * (parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss,
- * mentenantaColectiva, mentenantaPreventiva).
- *
- * TODO: datele sunt momentan placeholder — de înlocuit cu GET /api/site-reports,
- * iar butoanele de adăugare/editare cu formularul de raport zilnic.
+ * mentenantaCorectiva, mentenantaPreventiva).
  */
 
 /**
@@ -39,72 +39,9 @@ const COLUMNS = [
   { label: 'Inducție', align: 'text-right' },
   { label: 'Mediu', align: 'text-right' },
   { label: 'Near miss', align: 'text-right' },
-  { label: 'Ment. colectivă', align: 'text-right' },
+  { label: 'Ment. corectivă', align: 'text-right' },
   { label: 'Ment. preventivă', align: 'text-right' },
   { label: '' },
-]
-
-const PLACEHOLDER_REPORTS = [
-  {
-    id: 1,
-    parc: 'Parc fotovoltaic Ianca',
-    echipa: ['Ionescu Andrei', 'Marin Vlad', 'Dobre Cristian'],
-    data: '2026-08-14',
-    oreLucrate: 24,
-    inductieOre: 2,
-    mediuOre: 1,
-    nearMiss: 0,
-    mentenantaColectiva: 6,
-    mentenantaPreventiva: 4,
-  },
-  {
-    id: 2,
-    parc: 'Parc eolian Fântânele',
-    echipa: ['Popa Mihai', 'Radu Ștefan'],
-    data: '2026-08-13',
-    oreLucrate: 16,
-    inductieOre: 1,
-    mediuOre: 0.5,
-    nearMiss: 1,
-    mentenantaColectiva: 4,
-    mentenantaPreventiva: 2,
-  },
-  {
-    id: 3,
-    parc: 'Parc fotovoltaic Ianca',
-    echipa: ['Ionescu Andrei', 'Dobre Cristian'],
-    data: '2026-08-12',
-    oreLucrate: 18,
-    inductieOre: 2,
-    mediuOre: 1,
-    nearMiss: 0,
-    mentenantaColectiva: 3,
-    mentenantaPreventiva: 5,
-  },
-  {
-    id: 4,
-    parc: 'Parc eolian Cogealac',
-    echipa: ['Stan Bogdan', 'Neagu Alexandru', 'Toma Răzvan', 'Ilie Cătălin'],
-    data: '2026-08-11',
-    oreLucrate: 32,
-    inductieOre: 4,
-    mediuOre: 2,
-    nearMiss: 2,
-    mentenantaColectiva: 8,
-    mentenantaPreventiva: 6,
-  },
-  {
-    id: 5,
-    parc: 'Parc eolian Fântânele',
-    echipa: ['Popa Mihai', 'Radu Ștefan', 'Stan Bogdan'],
-    data: '2026-08-10',
-    oreLucrate: 21,
-    inductieOre: 1.5,
-    mediuOre: 1,
-    nearMiss: 0,
-    mentenantaColectiva: 5,
-    mentenantaPreventiva: 3,
-  },
 ]
 
 /** `data` vine ca `YYYY-MM-DD` din backend, fără fus orar. */
@@ -118,13 +55,24 @@ const formatData = (data) =>
 /** Zecimalele apar doar când există (24 rămâne „24”, nu „24,0”). */
 const formatNumar = (n) => new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(n)
 
+const normalizeText = (text) =>
+  text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
 export default function SiteReportsPage() {
-  const [reports] = useState(PLACEHOLDER_REPORTS)
+  const [reports, setReports] = useState([])
+
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+
   const [parc, setParc] = useState('toate')
   const [query, setQuery] = useState('')
 
-  // Filtrul de parc se construiește din datele primite — backendul filtrează tot
-  // după `parc`, deci opțiunile nu sunt o listă fixă în frontend.
+  const [isFormOpen, setIsFormOpen] = useState(false)
+
+
   const parcOptions = useMemo(
     () => [
       { value: 'toate', label: 'Toate' },
@@ -134,23 +82,81 @@ export default function SiteReportsPage() {
   )
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = normalizeText(query.trim())
 
     return reports
       .filter((r) => parc === 'toate' || r.parc === parc)
-      .filter((r) => !q || `${r.parc} ${r.echipa.join(' ')}`.toLowerCase().includes(q))
+      .filter((r) => {
+        if (!q) return true
+        const searchString = `${r.parc} ${(r.echipa || []).join(' ')}`
+        return normalizeText(searchString).includes(q)
+      })
   }, [reports, parc, query])
 
   const handleAdd = () => {
-    // TODO: deschide formularul de raport zilnic (POST /api/site-reports).
+    setIsFormOpen(true);
   }
 
   const handleEdit = (report) => {
     // TODO: deschide formularul precompletat cu `report` (PUT /api/site-reports/:id).
   }
 
+  useEffect(() => {
+    //create controller that handles request cancelation
+    const controller = new AbortController();
+
+    const jwt = localStorage.getItem('token');
+
+    const fetchResponse = async() => {
+      try{
+
+        setIsLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/site-reports/", {method: 'GET', headers: {
+          Authorization: `Bearer ${jwt}`},
+          //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
+          //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
+          signal: controller.signal
+        });
+
+        if(!res.ok)
+          throw new Error(`A apărut o eroare la descărcarea datelor (${res.status})`)
+
+        const data = await res.json();
+
+        if(data.error){
+          throw new Error(data.error);
+        }
+        
+        setReports(data.data);
+
+      }catch(err){
+        //ignore the error is the request was cancelled by the user intentionally
+        if(err.name !== 'AbortError')
+          setError(err.message);
+      }finally{
+        setIsLoading(false);
+      }
+    }
+
+    fetchResponse();
+
+    //clean up function - useEffect runs when something (which we set) changes
+    //or when the component is destroyed - in both cases, if a request is running, we stop it
+    return () => controller.abort();
+
+  }, [])
+
   return (
+
+
     <PageTransition>
+
+      <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)}>
+        <DailyReportForm />
+      </Modal>
+
       <main className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-5 px-7 pb-[72px] pt-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <PageHeading
@@ -191,70 +197,81 @@ export default function SiteReportsPage() {
             ))}
           </div>
 
-          <AnimatePresence initial={false}>
-            {rows.map((report) => (
-              <motion.div
-                key={report.id}
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                style={GRID}
-                className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
-              >
-                <span className="text-ink-600">{formatData(report.data)}</span>
-
-                <span className="truncate font-bold text-ink">{report.parc}</span>
-
-                <span className="flex min-w-0 flex-col gap-[3px]">
-                  <span className="truncate text-cta text-ink-700">{report.echipa.join(', ')}</span>
-                  <span className="text-meta text-ink-400">
-                    {report.echipa.length} {report.echipa.length === 1 ? 'lucrător' : 'lucrători'}
-                  </span>
-                </span>
-
-                <span className="text-right font-mono text-cta text-ink-700">
-                  {formatNumar(report.oreLucrate)}
-                </span>
-                <span className="text-right font-mono text-cta text-ink-700">
-                  {formatNumar(report.inductieOre)}
-                </span>
-                <span className="text-right font-mono text-cta text-ink-700">
-                  {formatNumar(report.mediuOre)}
-                </span>
-
-                {/* Un near miss raportat este singura valoare care merită scoasă în evidență. */}
-                <span
-                  className={`text-right font-mono text-cta ${
-                    report.nearMiss > 0 ? 'font-bold text-danger' : 'text-ink-700'
-                  }`}
+          {isLoading ? (
+            <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
+              Se încarcă rapoartele...
+            </div>
+          ) : error ? (
+            <div className="px-[22px] py-[34px] text-center text-body-sm text-danger">
+              {error}
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {rows.map((report) => (
+                <motion.div
+                  key={report.id}
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  style={GRID}
+                  className="items-center border-b border-line-faint px-[22px] py-[15px] text-body-sm text-ink-700 transition-colors duration-150 hover:bg-surface-alt"
                 >
-                  {formatNumar(report.nearMiss)}
-                </span>
+                  <span className="text-ink-600">{formatData(report.data)}</span>
 
-                <span className="text-right font-mono text-cta text-ink-700">
-                  {formatNumar(report.mentenantaColectiva)}
-                </span>
-                <span className="text-right font-mono text-cta text-ink-700">
-                  {formatNumar(report.mentenantaPreventiva)}
-                </span>
+                  <span className="truncate font-bold text-ink">{report.parc}</span>
 
-                <span className="justify-self-end">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(report)}
-                    aria-label={`Editează raportul din ${formatData(report.data)} — ${report.parc}`}
-                    className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
+                  <span className="flex min-w-0 flex-col gap-[3px]">
+                    <span className="truncate text-cta text-ink-700">
+                      {(report.echipa || []).join(', ')}
+                    </span>
+                    <span className="text-meta text-ink-400">
+                      {report.echipa?.length || 0} {report.echipa?.length === 1 ? 'lucrător' : 'lucrători'}
+                    </span>
+                  </span>
+
+                  <span className="text-right font-mono text-cta text-ink-700">
+                    {formatNumar(report.ore_lucrate)}
+                  </span>
+                  <span className="text-right font-mono text-cta text-ink-700">
+                    {formatNumar(report.inductie_ore)}
+                  </span>
+                  <span className="text-right font-mono text-cta text-ink-700">
+                    {formatNumar(report.mediu_ore)}
+                  </span>
+
+                  <span
+                    className={`text-right font-mono text-cta ${
+                      report.near_miss > 0 ? 'font-bold text-danger' : 'text-ink-700'
+                    }`}
                   >
-                    Editează
-                  </button>
-                </span>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                    {formatNumar(report.near_miss)}
+                  </span>
 
-          {rows.length === 0 && (
+                  <span className="text-right font-mono text-cta text-ink-700">
+                    {formatNumar(report.mentenanta_corectiva)}
+                  </span>
+                  <span className="text-right font-mono text-cta text-ink-700">
+                    {formatNumar(report.mentenanta_preventiva)}
+                  </span>
+
+                  <span className="justify-self-end">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(report)}
+                      aria-label={`Editează raportul din ${formatData(report.data)} — ${report.parc}`}
+                      className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
+                    >
+                      Editează
+                    </button>
+                  </span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+
+          {!isLoading && !error && rows.length === 0 && (
             <div className="px-[22px] py-[34px] text-center text-body-sm text-ink-400">
               Nu există rapoarte care corespund filtrului selectat.
             </div>
@@ -262,9 +279,6 @@ export default function SiteReportsPage() {
 
           <div className="flex items-center justify-between gap-4 px-[22px] py-[13px] text-meta text-ink-400">
             <span>{`${rows.length} din ${reports.length} rapoarte`}</span>
-            <span className="uppercase tracking-status">
-              Orele se raportează ca ore-om (durată × persoane)
-            </span>
           </div>
         </Card>
       </main>

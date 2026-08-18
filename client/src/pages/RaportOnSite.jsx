@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 const FIELDS = [
   "parc", 
   "data", 
-  "data", 
   "oreLucrate", 
   "inductieOre", 
   "mediuOre", 
@@ -26,6 +25,9 @@ export default function DailyReportForm({
   const [workers, setWorkers] = useState(() => Array(minWorkers).fill(""));
   const [toast, setToast] = useState("");
   const timerRef = useRef(null);
+
+  const [submitError, setSubmitError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const flash = (msg) => {
     setToast(msg);
@@ -87,7 +89,28 @@ export default function DailyReportForm({
       flash("Data trebuie în format zz/ll/aaaa.");
       return;
     }
+
+    setSubmitError(null);
+    setIsSubmitting(false);
+
+    try{
+      const jwt = localStorage.getItem('token');
+      const payload = {
+        parc: vals.parc,
+        echipa: workers.filter((w) => w.trim() !== ''),
+        data: parseDataToIso(vals.data),
+        oreLucrate: Number(vals.ore),
+        inductieOre: Number(vals.induction),
+        mediuOre: Number(vals.mediu),
+        nearMiss: Number(vals.nearMiss),
+        mentenantaColectiva: Number(vals.mentenantaCorectiva),
+        mentenantaPreventiva: Number(vals.mentenantaPreventiva),
+      }
+    }
+
     flash(`Raport trimis pentru ${vals.data} — ${namedWorkers} lucrători.`);
+
+
   };
 
   const namedWorkers = workers.filter((w) => w.trim() !== "").length;
@@ -472,7 +495,7 @@ export default function DailyReportForm({
                 inputMode="decimal"
                 placeholder="ore-om, ex. 24"
                 value={vals.ore ?? ""}
-                onChange={(e) => handleFieldChange("ore", e.target.value)}
+                onChange={(e) => handleFieldChange("oreLucrate", e.target.value)}
                 style={{
                   boxSizing: "border-box",
                   width: "100%",
@@ -516,7 +539,7 @@ export default function DailyReportForm({
                 inputMode="decimal"
                 placeholder="ore, ex. 2"
                 value={vals.induction ?? ""}
-                onChange={(e) => handleFieldChange("induction", e.target.value)}
+                onChange={(e) => handleFieldChange("inductionOre", e.target.value)}
                 style={{
                   boxSizing: "border-box",
                   width: "100%",
@@ -560,7 +583,7 @@ export default function DailyReportForm({
                 inputMode="decimal"
                 placeholder="ore, ex. 1"
                 value={vals.mediu ?? ""}
-                onChange={(e) => handleFieldChange("mediu", e.target.value)}
+                onChange={(e) => handleFieldChange("mediuOre", e.target.value)}
                 style={{
                   boxSizing: "border-box",
                   width: "100%",

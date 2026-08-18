@@ -9,9 +9,9 @@ interface DailyReport{
     inductieOre: number,
     mediuOre: number,
     nearMiss: number,
-    mentenantaColectiva: number,
+    mentenantaCorectiva: number,
     mentenantaPreventiva: number
-    
+
 }
 
 function isValidDateString(s: unknown): s is string {
@@ -29,7 +29,7 @@ function isValidReport(body: any): body is DailyReport {
   if(!isValidDateString(body.data))
     return false;
 
-  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre', 'nearMiss', 'mentenantaPreventiva', 'mentenantaColectiva'] as const) {
+  for (const field of ['oreLucrate', 'inductieOre', 'mediuOre', 'nearMiss', 'mentenantaPreventiva', 'mentenantaCorectiva'] as const) {
     const v = body[field];
     if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return false;
   }
@@ -44,7 +44,7 @@ export const uploadReport = async(req: Request, res: Response) => {
         return res.status(400).json({ error: 'Toate campurile sunt obligatorii si neaparat valide' });
     }
 
-    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaColectiva, mentenantaPreventiva} = req.body as DailyReport;
+    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaCorectiva, mentenantaPreventiva} = req.body as DailyReport;
 
     const {error: reportError} = await supabase.from('site_reports').insert({
         'user_id': userId,
@@ -55,7 +55,7 @@ export const uploadReport = async(req: Request, res: Response) => {
         'mediu_ore': mediuOre,
         'inductie_ore': inductieOre,
         'near_miss': nearMiss,
-        'mentenanta_colectiva': mentenantaColectiva,
+        'mentenanta_corectiva': mentenantaCorectiva,
         'mentenanta_preventiva': mentenantaPreventiva
     })
 
@@ -105,6 +105,7 @@ export const getReports = async(req: Request, res: Response) => {
         return res.status(500).json({error: 'Internal server error'});
     }
 
+    console.log(data);
     return res.status(200).json({success: true, data: data})
 }
 
@@ -126,7 +127,7 @@ export const editReport = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Toate campurile sunt obligatorii si neaparat valide' });
     }
 
-    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaColectiva, mentenantaPreventiva} = req.body as DailyReport;
+    const {parc, echipa, data, oreLucrate, inductieOre, mediuOre, nearMiss, mentenantaCorectiva, mentenantaPreventiva} = req.body as DailyReport;
 
 
     const{error: updateError} = await supabase.from('site_reports').update({
@@ -137,7 +138,7 @@ export const editReport = async (req: Request, res: Response) => {
         'mediu_ore': mediuOre,
         'inductie_ore': inductieOre,
         'near_miss': nearMiss,
-        'mentenanta_colectiva': mentenantaColectiva,
+        'mentenanta_corectiva': mentenantaCorectiva,
         'mentenanta_preventiva': mentenantaPreventiva
     }).eq('id', reportId).eq('user_id', userId);
 
