@@ -27,7 +27,7 @@ import DailyReportForm from './RaportOnSite.jsx'
 const GRID = {
   display: 'grid',
   gridTemplateColumns:
-    '96px minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 96px 120px 120px 96px',
+    '96px minmax(160px, 1.2fr) minmax(170px, 1.2fr) 96px 96px 88px 96px 120px 120px 160px',
   gap: '16px',
   width: '100%',
 }
@@ -128,7 +128,6 @@ export default function SiteReportsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingReport, setEditingReport] = useState(null);
 
-
   const parcOptions = useMemo(
     () => [
       { value: 'toate', label: 'Toate' },
@@ -219,9 +218,55 @@ export default function SiteReportsPage() {
     setIsFormOpen(true);
   }
 
+  const closeTimeoutRef = useRef(null);
+
   const handleCloseModal = () => {
     setIsFormOpen(false);
-    setTimeout(() => setEditingReport(null), 200); 
+    closeTimeoutRef.current = setTimeout(() => setEditingReport(null), 200);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    }
+  }, [])
+
+  const handleDelete = async(report) => {
+
+    //confirmation
+    if (!window.confirm(`Ești sigur că vrei să ștergi raportul din ${formatData(report.data)} (${report.parc})?\nAceastă acțiune este ireversibilă.`)) {
+      return; 
+    }
+
+    setError(null);
+
+    try{
+
+      const jwt = localStorage.getItem('token');
+      const res = await fetch(`/api/site-reports/${encodeURIComponent(report.id)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${jwt}`
+        }      
+      })
+
+      if(!res.ok){
+        throw new Error(`A apărut o eroare la stergerea datelor (${res.status})`)
+      }
+
+      const data = await res.json();
+      if(data.error){
+        throw new Error(data.error);
+      }
+     
+      setReports(reports => reports.filter(r => r.id !== report.id))
+
+    }catch(err){
+      setError(err.message)
+    }
+
   }
 
   useEffect(() => {
@@ -389,7 +434,7 @@ export default function SiteReportsPage() {
                           {formatNumar(report.mentenanta_preventiva)}
                         </span>
 
-                        <span className="justify-self-end">
+                        <span className="justify-self-end flex items-center gap-4">
                           <button
                             type="button"
                             onClick={() => handleEdit(report)}
@@ -397,6 +442,15 @@ export default function SiteReportsPage() {
                             className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover hover:underline"
                           >
                             Editează
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(report)}
+                            aria-label={`Sterge raportul din ${formatData(report.data)} — ${report.parc}`}
+                            className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-danger transition-colors duration-150 hover:text-danger-hover hover:underline"
+                          >
+                            Șterge
                           </button>
                         </span>
                       </motion.div>
