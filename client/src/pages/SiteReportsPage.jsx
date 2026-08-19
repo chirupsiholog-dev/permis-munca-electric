@@ -96,6 +96,92 @@ function ReportRowSkeleton({ index = 0 }) {
   )
 }
 
+function ReportCardSkeleton() {
+  return (
+    <div className="border-b border-line-faint px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <Skeleton className="h-[13px] w-[52%]" />
+        <Skeleton className="h-[11px] w-[64px]" />
+      </div>
+      <Skeleton className="mt-[6px] h-[10px] w-[70%]" />
+      <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-[10px] w-[70%]" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ReportCard({ report, onEdit, onDelete }) {
+  const echipaCount = Array.isArray(report.echipa)
+    ? report.echipa.length
+    : report.echipa
+    ? 1
+    : 0
+
+  const fields = [
+    { label: 'Ore lucrate', value: report.ore_lucrate },
+    { label: 'Inducție', value: report.inductie_ore },
+    { label: 'Mediu', value: report.mediu_ore },
+    { label: 'Near miss', value: report.near_miss, danger: report.near_miss > 0 },
+    { label: 'Ment. corectivă', value: report.mentenanta_corectiva },
+    { label: 'Ment. preventivă', value: report.mentenanta_preventiva },
+  ]
+
+  return (
+    <div className="border-b border-line-faint px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-bold text-ink">{report.parc}</span>
+        <span className="shrink-0 text-meta text-ink-400">{formatData(report.data)}</span>
+      </div>
+
+      <div className="mt-[3px] flex flex-col gap-[2px]">
+        <span className="truncate text-cta text-ink-700">
+          {Array.isArray(report.echipa)
+            ? report.echipa.join(', ')
+            : (report.echipa || 'Echipă nespecificată')}
+        </span>
+        <span className="text-meta text-ink-400">
+          {echipaCount} {echipaCount === 1 ? 'lucrător' : 'lucrători'}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
+        {fields.map((f) => (
+          <div key={f.label} className="flex flex-col">
+            <span className="text-meta text-ink-400">{f.label}</span>
+            <span
+              className={`font-mono text-cta ${f.danger ? 'font-bold text-danger' : 'text-ink-700'}`}
+            >
+              {formatNumar(f.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-5 border-t border-line-faint pt-3">
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Editează raportul din ${formatData(report.data)} — ${report.parc}`}
+          className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-brand transition-colors duration-150 hover:text-brand-hover"
+        >
+          Editează
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Sterge raportul din ${formatData(report.data)} — ${report.parc}`}
+          className="cursor-pointer border-0 bg-transparent p-0 text-label font-bold uppercase tracking-label text-danger transition-colors duration-150 hover:text-danger-hover"
+        >
+          Șterge
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const formatData = (data) => {
   if (!data) return '-'; 
   try {
@@ -313,7 +399,7 @@ export default function SiteReportsPage() {
           <Button onClick={handleAdd}>Adaugă raport</Button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
           <SegmentedControl
             label="Filtrează după parc"
             options={parcOptions}
@@ -327,12 +413,56 @@ export default function SiteReportsPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Caută după parc sau membru al echipei"
             aria-label="Caută rapoarte"
-            className="h-10 w-[340px] max-w-full border border-line-strong bg-surface px-3 text-body-sm text-ink-900 outline-0 transition-colors duration-150 focus:bg-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="h-10 w-full border border-line-strong bg-surface px-3 text-body-sm text-ink-900 outline-0 transition-colors duration-150 focus:bg-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:w-[340px] sm:max-w-full"
           />
         </div>
 
-        <Card className="overflow-x-auto">
-          <div style={TABLE_SHELL}>
+        <Card className="sm:overflow-x-auto">
+
+          {/* ── Mobile: card stack ── */}
+          <div className="sm:hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              {isLoading ? (
+                <motion.div key="loading-mobile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+                    <ReportCardSkeleton key={i} />
+                  ))}
+                </motion.div>
+              ) : error ? (
+                <motion.div key="error-mobile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="px-4 py-8 text-center text-body-sm text-danger">
+                  {error}
+                </motion.div>
+              ) : (
+                <motion.div key="content-mobile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+                  <AnimatePresence initial={false}>
+                    {rows.map((report) => (
+                      <motion.div key={report.id} layout initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                        <ReportCard
+                          report={report}
+                          onEdit={() => handleEdit(report)}
+                          onDelete={() => handleDelete(report)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {rows.length === 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18 }} className="px-4 py-8 text-center text-body-sm text-ink-400">
+                      Nu există rapoarte care corespund filtrului selectat.
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {!isLoading && (
+              <div className="px-4 py-3 text-meta text-ink-400">
+                {`${rows.length} din ${reports.length} rapoarte`}
+              </div>
+            )}
+          </div>
+
+          <div style={TABLE_SHELL} className='hidden sm:block'>
             <div
               style={GRID}
               className="items-center border-b border-line bg-surface-alt px-[22px] py-[13px] text-table-head font-bold uppercase tracking-label text-ink-400"
