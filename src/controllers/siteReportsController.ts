@@ -124,7 +124,7 @@ export const editReport = async (req: Request, res: Response) => {
     }
 
     if(!reportData){
-        return res.status(400).json({error: 'Raport invalid'});
+        return res.status(404).json({error: 'Raport invalid'});
     }
 
     if(!isValidReport(req.body)){
@@ -152,6 +152,31 @@ export const editReport = async (req: Request, res: Response) => {
 
     return res.status(200).json({success:true, message: 'Raport editat cu success'})
 
+}
+
+export const deleteReport = async(req: Request, res: Response) => {
+
+    try{
+        const userId = req.user;
+
+        const reportId = req.params.id;
+
+        const {data: reportData, error: deleteError} = await supabase.from('site_reports').delete().eq('user_id', userId).eq('id', reportId).select('*').maybeSingle();
+
+        if(deleteError){
+            console.error('Supabase delete error:', deleteError);
+            return res.status(500).json({error: 'Eroare la stergere'});
+        }
+
+        if(!reportData){
+            return res.status(404).json({error: 'Raport invalid'});
+        }
+
+        return res.status(200).json({success: true, message: 'Raport sters cu success'});
+    }catch(err){
+        console.error('Unexpected error in deleteReport:', err);
+        return res.status(500).json({ error: 'Eroare interna a serverului' });
+    }
 }
 
 interface Report{
