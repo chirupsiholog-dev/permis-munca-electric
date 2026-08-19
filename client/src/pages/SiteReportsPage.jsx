@@ -345,7 +345,7 @@ export default function SiteReportsPage() {
         throw new Error(`A apărut o eroare la stergerea datelor (${res.status})`)
       }
 
-      const data = await parseJsonOrThrow(res);
+      const data = await res.json();
       if(data.error){
         throw new Error(data.error);
       }
