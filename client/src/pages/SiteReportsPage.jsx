@@ -222,6 +222,9 @@ export default function SiteReportsPage() {
 
   const handleCloseModal = () => {
     setIsFormOpen(false);
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
     closeTimeoutRef.current = setTimeout(() => setEditingReport(null), 200);
   }
 
