@@ -257,7 +257,7 @@ export default function SiteReportsPage() {
         setIsLoading(true);
         setError(null);
 
-        const res = await fetch("/api/site-reports/", {method: 'GET', headers: {
+        const res = await fetch('/api/site-reports', {method: 'GET', headers: {
           Authorization: `Bearer ${jwt}`},
           //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
           //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
@@ -345,7 +345,7 @@ export default function SiteReportsPage() {
         throw new Error(`A apărut o eroare la stergerea datelor (${res.status})`)
       }
 
-      const data = await res.json();
+      const data = await parseJsonOrThrow(res);
       if(data.error){
         throw new Error(data.error);
       }
