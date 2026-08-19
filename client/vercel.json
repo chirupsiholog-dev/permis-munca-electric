@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://permis-munca-electric.razvanchiru.ro/api/:path*"
+      "destination": "https://permis-munca-electric.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
