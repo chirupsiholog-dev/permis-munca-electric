@@ -105,6 +105,7 @@ export const openapiSpec = {
     tags: [
         { name: 'Auth', description: 'Signup, login and logout' },
         { name: 'Documents', description: 'Create and read work permit documents' },
+        { name: 'Site Reports', description: 'Daily on-site work reports and exports' },
         { name: 'Namirial', description: 'Signing-provider webhook callbacks' }
     ],
     components: {
@@ -255,6 +256,40 @@ export const openapiSpec = {
                         description: 'Status `pending_emitent` — waiting for the issuer to sign.',
                         example: 2
                     }
+                }
+            },
+            SiteReport: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    user_id: { type: 'string', format: 'uuid', description: 'User who submitted the report.' },
+                    parc: { type: 'string', example: 'Parc fotovoltaic Galati Sud' },
+                    echipa: { type: 'array', items: { type: 'string' }, example: ['Ionescu Marius', 'Dumitrescu Andrei'] },
+                    data: { type: 'string', format: 'date', example: '2026-08-19' },
+                    ore_lucrate: { type: 'number', format: 'float', minimum: 0, example: 8 },
+                    inductie_ore: { type: 'number', format: 'float', minimum: 0, example: 1.5 },
+                    mediu_ore: { type: 'number', format: 'float', minimum: 0, example: 0.5 },
+                    near_miss: { type: 'integer', minimum: 0, example: 1 },
+                    mentenanta_corectiva: { type: 'number', format: 'float', minimum: 0, example: 2 },
+                    mentenanta_preventiva: { type: 'number', format: 'float', minimum: 0, example: 4 }
+                }
+            },
+            SiteReportRequest: {
+                type: 'object',
+                required: [
+                    'parc', 'echipa', 'data', 'oreLucrate', 'inductieOre', 'mediuOre',
+                    'nearMiss', 'mentenantaCorectiva', 'mentenantaPreventiva'
+                ],
+                properties: {
+                    parc: { type: 'string', example: 'Parc fotovoltaic Galati Sud' },
+                    echipa: { type: 'array', minItems: 1, items: { type: 'string' }, example: ['Ionescu Marius', 'Dumitrescu Andrei'] },
+                    data: { type: 'string', format: 'date', description: 'Calendar date in YYYY-MM-DD format.', example: '2026-08-19' },
+                    oreLucrate: { type: 'number', format: 'float', minimum: 0, example: 8 },
+                    inductieOre: { type: 'number', format: 'float', minimum: 0, example: 1.5 },
+                    mediuOre: { type: 'number', format: 'float', minimum: 0, example: 0.5 },
+                    nearMiss: { type: 'integer', minimum: 0, example: 1 },
+                    mentenantaCorectiva: { type: 'number', format: 'float', minimum: 0, example: 2 },
+                    mentenantaPreventiva: { type: 'number', format: 'float', minimum: 0, example: 4 }
                 }
             },
             PdfData: {
@@ -862,6 +897,124 @@ export const openapiSpec = {
                             }
                         }
                     }
+                }
+            }
+        },
+        '/api/site-reports': {
+            post: {
+                tags: ['Site Reports'],
+                summary: 'Create an on-site report',
+                description: 'Creates a daily report owned by the authenticated user. Numeric values must be finite and non-negative; `nearMiss` must be a non-negative integer.',
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: { 'application/json': { schema: { $ref: '#/components/schemas/SiteReportRequest' } } }
+                },
+                responses: {
+                    '200': {
+                        description: 'Report saved.',
+                        content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean', example: true }, message: { type: 'string', example: 'Raport on-site salvat cu success' } } } } }
+                    },
+                    '400': {
+                        description: 'A required field is missing or invalid.',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Toate campurile sunt obligatorii si neaparat valide' } } }
+                    },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '500': {
+                        description: 'Database error while saving the report.',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Internal server error' } } }
+                    }
+                }
+            },
+            get: {
+                tags: ['Site Reports'],
+                summary: 'List the current user\'s on-site reports',
+                description: 'Returns reports owned by the authenticated user, newest first. Optionally filter by the exact park name.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'parc', in: 'query', required: false, description: 'Exact park name filter.', schema: { type: 'string' } }],
+                responses: {
+                    '200': {
+                        description: 'Reports retrieved.',
+                        content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean', example: true }, data: { type: 'array', items: { $ref: '#/components/schemas/SiteReport' } } } } } }
+                    },
+                    '400': {
+                        description: 'The `parc` query parameter is not a string.',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Invalid filter' } } }
+                    },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '500': { description: 'Database error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
+                }
+            }
+        },
+        '/api/site-reports/admin': {
+            get: {
+                tags: ['Site Reports'],
+                summary: 'List all on-site reports',
+                description: 'Admin-only list of all reports, newest first. Optionally filter by the exact park name.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'parc', in: 'query', required: false, description: 'Exact park name filter.', schema: { type: 'string' } }],
+                responses: {
+                    '200': {
+                        description: 'Reports retrieved.',
+                        content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean', example: true }, data: { type: 'array', items: { $ref: '#/components/schemas/SiteReport' } } } } } }
+                    },
+                    '400': { description: 'The `parc` query parameter is not a string.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Invalid filter' } } } },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '403': { description: 'The authenticated user is not an administrator.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+                    '500': { description: 'Database error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
+                }
+            }
+        },
+        '/api/site-reports/{id}': {
+            put: {
+                tags: ['Site Reports'],
+                summary: 'Edit the current user\'s on-site report',
+                description: 'Updates a report only when it belongs to the authenticated user.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'id', in: 'path', required: true, description: 'Report id.', schema: { type: 'string', format: 'uuid' } }],
+                requestBody: {
+                    required: true,
+                    content: { 'application/json': { schema: { $ref: '#/components/schemas/SiteReportRequest' } } }
+                },
+                responses: {
+                    '200': { description: 'Report edited.', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean', example: true }, message: { type: 'string', example: 'Raport editat cu success' } } } } } },
+                    '400': { description: 'The report body is invalid.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '404': { description: 'The report does not belong to the current user.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Raport invalid' } } } },
+                    '500': { description: 'Database error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
+                }
+            },
+            delete: {
+                tags: ['Site Reports'],
+                summary: 'Delete the current user\'s on-site report',
+                description: 'Deletes a report only when it belongs to the authenticated user.',
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: 'id', in: 'path', required: true, description: 'Report id.', schema: { type: 'string', format: 'uuid' } }],
+                responses: {
+                    '200': { description: 'Report deleted.', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean', example: true }, message: { type: 'string', example: 'Raport sters cu success' } } } } } },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '404': { description: 'The report does not belong to the current user.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, example: { error: 'Raport invalid' } } } },
+                    '500': { description: 'Database error while deleting the report.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
+                }
+            }
+        },
+        '/api/site-reports/admin/download': {
+            get: {
+                tags: ['Site Reports'],
+                summary: 'Download all on-site reports as Excel',
+                description: 'Admin-only export of reports. Filter by month (`luna`, two digits), year (`an`, four digits), and/or exact park name (`parc`).',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { name: 'luna', in: 'query', required: false, description: 'Month filter, as `01` through `12`.', schema: { type: 'string', pattern: '^\\d{2}$', example: '08' } },
+                    { name: 'an', in: 'query', required: false, description: 'Year filter, as four digits.', schema: { type: 'string', pattern: '^\\d{4}$', example: '2026' } },
+                    { name: 'parc', in: 'query', required: false, description: 'Exact park name filter.', schema: { type: 'string' } }
+                ],
+                responses: {
+                    '200': { description: 'Excel workbook containing one worksheet per park.', content: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } } } },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '403': { description: 'The authenticated user is not an administrator.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+                    '404': { description: 'No reports exist or no reports match the selected filters.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+                    '500': { description: 'Database or Excel generation error.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
                 }
             }
         },
