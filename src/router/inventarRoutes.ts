@@ -5,7 +5,7 @@ import { requireAdmin, requireSuperuser } from "../middleware/requireAdmin.js";
 
 const router = Router();
 
-router.post('/new', getCurrentUser, uploadInventar)
+router.post('/', getCurrentUser, uploadInventar)
 router.get('/my-inventare', getCurrentUser, getMyInventare)
 router.get('/subordinates', getCurrentUser, requireAdmin, getSubordinatesInventare)
 router.get('/all-inventare', getCurrentUser, requireSuperuser, getAllInventare)
