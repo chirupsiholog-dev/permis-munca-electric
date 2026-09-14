@@ -34,7 +34,7 @@ function isValidInventar(body: any): body is Inventar{
     if(typeof body['remarks'] !== 'string' || typeof body['data'] !== 'string' || typeof body['inverter'] !== 'string' )
         return false;
 
-    if(body['data'] === '' || body['inverter'] === '')
+    if(body['data'] === '' || body['inverter'].trim() === '')
         return false;
 
     return true;
@@ -77,7 +77,7 @@ export const uploadInventar = async (req: Request, res: Response) => {
         'comutator_curent': comutatorCurent,
         'suruburi': suruburi,
         'remarks': remarks.trim(),
-        'inverter': inverter,
+        'inverter': inverter.trim(),
         'data': data
     })
 
@@ -158,7 +158,7 @@ export const editInventar = async(req: Request, res: Response) => {
         'comutator_curent': comutatorCurent,
         'suruburi': suruburi,
         'remarks': remarks.trim(),
-        'inverter': inverter,
+        'inverter': inverter.trim(),
         'data': data
     }).eq('id', inventarId).eq('user_id', userId)
 
