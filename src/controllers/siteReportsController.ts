@@ -76,7 +76,7 @@ export const uploadReport = async(req: Request, res: Response) => {
     return res.status(200).json({success: true, message: 'Raport on-site salvat cu success'});
 }
 
-export const getAdminReports = async (req: Request, res: Response) => {
+export const getAllReports = async (req: Request, res: Response) => {
 
     let query = supabase.from('site_reports').select('*').order('data', {ascending: false});
     const parcFilter = req.query.parc;
@@ -96,7 +96,7 @@ export const getAdminReports = async (req: Request, res: Response) => {
     return res.status(200).json({success: true, data: data})
 }
 
-export const getReports = async(req: Request, res: Response) => {
+export const getMyReports = async(req: Request, res: Response) => {
 
     const userId = req.user;
 
@@ -116,6 +116,26 @@ export const getReports = async(req: Request, res: Response) => {
     }
 
     return res.status(200).json({success: true, data: data})
+}
+
+export const getReportsSubordinates = async(req: Request, res: Response) => {
+    
+    const userId = req.user;
+    
+    //get all the subordinates based on the id of the admin/super admin
+    const { data: subordinates } = await supabase.from('users').select('id').eq('created_by', userId);
+
+    if (!subordinates) {
+        return;
+    }
+
+    //map the subordinates id to an array
+    const subordinateIds = subordinates.map(user => user.id)
+    
+    const { data: reportsFromSubordinates, error: reportError } = await supabase
+    .from('site_reports').select('*').in('user_id', subordinateIds);
+
+    return res.status(200).json({ success: true, data: reportsFromSubordinates});
 }
 
 export const editReport = async (req: Request, res: Response) => {

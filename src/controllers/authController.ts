@@ -88,6 +88,7 @@ export const invite = async(req: Request, res: Response) => {
             console.log('[app url error] Missing APP URL');
             throw new Error('[app url error] Missing APP URL key')
         }
+        console.log(appUrl);
 
         if(req.role === 'user')
             return res.status(403).json({error: 'Forbidden'})
@@ -122,7 +123,8 @@ export const invite = async(req: Request, res: Response) => {
             'password_hash': passwordHash,
             'role': role,
             'set_password_token': hashedToken,
-            'set_password_expiry': new Date(Date.now() + INVITE_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
+            'set_password_expiry': new Date(Date.now() + INVITE_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+            'created_by': req.user
         }).select('id').single();
 
         if (insertError) {
