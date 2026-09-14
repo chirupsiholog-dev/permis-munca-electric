@@ -6,6 +6,7 @@ import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
 import SegmentedControl from '../components/ui/SegmentedControl.jsx'
+import { useOutletContext } from 'react-router-dom'
 
 /**
  * Vederea de admin peste rapoartele on-site: toate rapoartele, ale tuturor
@@ -104,6 +105,8 @@ export default function AdminSiteReportsPage() {
   const [luna, setLuna] = useState(TOATE)
   const [query, setQuery] = useState('')
 
+  const {profile} = useOutletContext();
+
   const parcOptions = useMemo(
     () => [
       { value: TOATE, label: 'Toate' },
@@ -160,12 +163,23 @@ export default function AdminSiteReportsPage() {
         setIsLoading(true);
         setError(null);
 
-        const res = await fetch("/api/site-reports/admin", {method: 'GET', headers: {
-          Authorization: `Bearer ${jwt}`},
-          //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
-          //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
-          signal: controller.signal
-        });
+        let res = null;
+
+        if (profile.role === 'admin') {
+          res = await fetch("/api/site-reports/subordinates", {method: 'GET', headers: {
+            Authorization: `Bearer ${jwt}`},
+            //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
+            //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
+            signal: controller.signal
+          });
+        } else if (profile.role === 'superuser') {
+            res = await fetch("/api/site-reports/all-reports", {method: 'GET', headers: {
+            Authorization: `Bearer ${jwt}`},
+            //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
+            //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
+            signal: controller.signal
+            });
+        }
 
         if(!res.ok)
           throw new Error(`A apărut o eroare la descărcarea datelor (${res.status})`)

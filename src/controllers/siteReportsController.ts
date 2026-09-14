@@ -78,6 +78,8 @@ export const uploadReport = async(req: Request, res: Response) => {
 
 export const getAllReports = async (req: Request, res: Response) => {
 
+    //for superadmin only
+
     let query = supabase.from('site_reports').select('*').order('data', {ascending: false});
     const parcFilter = req.query.parc;
     if(parcFilter !== undefined){
@@ -97,6 +99,8 @@ export const getAllReports = async (req: Request, res: Response) => {
 }
 
 export const getMyReports = async(req: Request, res: Response) => {
+
+    //for users only
 
     const userId = req.user;
 
@@ -120,6 +124,8 @@ export const getMyReports = async(req: Request, res: Response) => {
 
 export const getReportsSubordinates = async(req: Request, res: Response) => {
     
+    //for admins only
+
     const userId = req.user;
     
     //get all the subordinates based on the id of the admin/super admin
