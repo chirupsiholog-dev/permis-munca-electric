@@ -10,7 +10,8 @@ const NAV = [
   { to: '/permise', label: 'Permise' },
   { to: '/arhiva', label: 'Arhivă' },
   { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
-  {to: '/cont-nou', label: 'Cont nou'}
+  {to: '/cont-nou', label: 'Cont nou'},
+  {to: '/inventare', label: 'Inventare'}
 ]
 
 export default function Header({ user }) {
