@@ -123,7 +123,11 @@ export const getReportsSubordinates = async(req: Request, res: Response) => {
     const userId = req.user;
     
     //get all the subordinates based on the id of the admin/super admin
-    const { data: subordinates } = await supabase.from('users').select('id').eq('created_by', userId);
+    const { data: subordinates, error: subordinatesError } = await supabase.from('users').select('id').eq('created_by', userId);
+
+    if (subordinatesError) {
+        return res.status(500).json({'error': 'Internal server error.'})
+    }
 
     if (!subordinates) {
         return;
@@ -134,6 +138,10 @@ export const getReportsSubordinates = async(req: Request, res: Response) => {
     
     const { data: reportsFromSubordinates, error: reportError } = await supabase
     .from('site_reports').select('*').in('user_id', subordinateIds);
+
+    if (reportError) {
+        return res.status(500).json({error: 'Internal server error'});
+    }
 
     return res.status(200).json({ success: true, data: reportsFromSubordinates});
 }
