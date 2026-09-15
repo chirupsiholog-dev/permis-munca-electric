@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { supabase } from "../lib/supabaseClient.js";
-import { error } from "node:console";
+import { fillInventarPdf, type InventarData } from "../lib/utils.js";
+import path from "path";
 
 interface Inventar{
 
@@ -18,7 +19,9 @@ interface Inventar{
     suruburi: boolean
     remarks: string;
     data: string,
-    inverter: string
+    inverter: string,
+    turnon: string,
+    turnoff: string
 }
 
 function isValidInventar(body: any): body is Inventar{
@@ -31,10 +34,10 @@ function isValidInventar(body: any): body is Inventar{
                 return false;
         }
     
-    if(typeof body['remarks'] !== 'string' || typeof body['data'] !== 'string' || typeof body['inverter'] !== 'string' )
+    if(typeof body['remarks'] !== 'string' || typeof body['data'] !== 'string' || typeof body['inverter'] !== 'string' || typeof body['turnoff'] !== 'string' || typeof body['turnon'] !== 'string')
         return false;
 
-    if(body['data'] === '' || body['inverter'].trim() === '')
+    if(body['data'] === '' || body['inverter'].trim() === '' || body['turnon'] === '' || body['turnoff'] === '')
         return false;
 
     return true;
@@ -60,7 +63,7 @@ export const uploadInventar = async (req: Request, res: Response) => {
     impamantare,
     comutatorCurent,
     suruburi,
-    remarks, inverter, data} = req.body
+    remarks, inverter, data, turnon, turnoff} = req.body
 
     const {error: inventarError} = await supabase.from('inventare').insert({
         'user_id': userId,
@@ -78,7 +81,9 @@ export const uploadInventar = async (req: Request, res: Response) => {
         'suruburi': suruburi,
         'remarks': remarks.trim(),
         'inverter': inverter.trim(),
-        'data': data
+        'data': data,
+        'turn_on': turnon.trim(),
+        'turn_off': turnoff.trim()
     })
 
     if(inventarError)
@@ -142,7 +147,7 @@ export const editInventar = async(req: Request, res: Response) => {
     impamantare,
     comutatorCurent,
     suruburi,
-    remarks, inverter, data} = req.body
+    remarks, inverter, data, turnon, turnoff} = req.body
 
     const {error: inventarUpdateError} = await supabase.from('inventare').update({
         'praf': praf,
@@ -159,7 +164,9 @@ export const editInventar = async(req: Request, res: Response) => {
         'suruburi': suruburi,
         'remarks': remarks.trim(),
         'inverter': inverter.trim(),
-        'data': data
+        'data': data,
+        'turn_on': turnon.trim(),
+        'turn_off': turnoff.trim()
     }).eq('id', inventarId).eq('user_id', userId)
 
     if(inventarUpdateError)
@@ -240,4 +247,66 @@ export const getAllInventare = async(req: Request, res: Response) => {
     }
 
     return res.status(200).json({success: true, data: inventare})
+}
+
+function toInventarData(row: any): InventarData {
+  return {
+    data: row.data,
+    inverter: row.inverter,
+    turnoff: row.turn_off,
+    turnon: row.turn_on,
+    remarks: row.remarks,
+    praf: row.praf,
+    ventilatoare: row.ventilatoare,
+    inventorDeteriorat: row.inventor_deteriorat,
+    inventorSunete: row.inventor_sunete,
+    parametriiCorecti: row.parametrii_corecti,
+    cabluriConectate: row.cabluri_conectate,
+    cabluriIntacte: row.cabluri_intacte,
+    capaceEtansare: row.capace_etansare,
+    porturi: row.porturi,
+    impamantare: row.impamantare,
+    comutatorCurent: row.comutator_curent,
+    suruburi: row.suruburi,
+  };
+}
+
+export const downloadInventar = async (req: Request, res: Response) => {
+  const user_id = req.user;
+  const inventarId = req.params['id'];
+
+  if (req.role === 'admin') {
+    const { data, error } = await supabase
+      .from('inventare')
+      .select('user_id, users(created_by)')
+      .eq('id', inventarId)
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: 'Internal Server Error' });
+    if (!data) return res.status(400).json({ error: 'Inventar invalid' });
+
+    const inventarCreatorAdmin = (data.users as unknown as { created_by: string })?.created_by;
+
+    if (inventarCreatorAdmin !== user_id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+  }
+
+    const{data, error} = await supabase.from('inventare').select('*').eq('id', inventarId).maybeSingle()
+    if(error){
+        return res.status(500).json({error: 'Internal Server Error'})
+    }
+    if(!data){
+        return res.status(400).json({error: 'Inventar invalid'})
+    }
+
+    const filePath = path.join(process.cwd(), 'src', 'assets', 'Check_list_Invertoare_6_luni_AcroForm-3.pdf') 
+    const pdfBytes = await fillInventarPdf(toInventarData(data), filePath);
+
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+    res.setHeader('Content-Disposition', `attachment; filename="inventar_${inventarId}.pdf"`)
+    res.setHeader('Content-Type', 'application/pdf');
+
+    res.send(pdfBytes);
+
 }
