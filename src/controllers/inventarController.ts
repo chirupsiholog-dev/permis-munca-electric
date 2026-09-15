@@ -37,7 +37,7 @@ function isValidInventar(body: any): body is Inventar{
     if(typeof body['remarks'] !== 'string' || typeof body['data'] !== 'string' || typeof body['inverter'] !== 'string' || typeof body['turnoff'] !== 'string' || typeof body['turnon'] !== 'string')
         return false;
 
-    if(body['data'] === '' || body['inverter'].trim() === '' || body['turnon'] === '' || body['turnoff'] === '')
+    if(body['data'].trim() === '' || body['inverter'].trim() === '' || body['turnon'].trim() === '' || body['turnoff'].trim() === '')
         return false;
 
     return true;
@@ -287,7 +287,7 @@ export const downloadInventar = async (req: Request, res: Response) => {
 
     const inventarCreatorAdmin = (data.users as unknown as { created_by: string })?.created_by;
 
-    if (inventarCreatorAdmin !== user_id) {
+    if (data.user_id !== user_id && inventarCreatorAdmin !== user_id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
   }
