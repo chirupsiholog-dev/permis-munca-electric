@@ -19,6 +19,8 @@ interface Inventar{
     remarks: string;
     data: string,
     inverter: string
+    oraInceput: string
+    oraSfarsit: string
 }
 
 function isValidInventar(body: any): body is Inventar{
@@ -60,7 +62,12 @@ export const uploadInventar = async (req: Request, res: Response) => {
     impamantare,
     comutatorCurent,
     suruburi,
-    remarks, inverter, data} = req.body
+    remarks,
+    inverter,
+    data,
+    oraInceput,
+    oraSfarsit,
+    } = req.body
 
     const {error: inventarError} = await supabase.from('inventare').insert({
         'user_id': userId,
@@ -78,7 +85,9 @@ export const uploadInventar = async (req: Request, res: Response) => {
         'suruburi': suruburi,
         'remarks': remarks.trim(),
         'inverter': inverter.trim(),
-        'data': data
+        'data': data,
+        'start_time': oraInceput,
+        'end_time': oraSfarsit
     })
 
     if(inventarError)
@@ -142,7 +151,11 @@ export const editInventar = async(req: Request, res: Response) => {
     impamantare,
     comutatorCurent,
     suruburi,
-    remarks, inverter, data} = req.body
+    remarks, 
+    inverter, 
+    data, 
+    oraInceput,
+    oraSfarsit} = req.body
 
     const {error: inventarUpdateError} = await supabase.from('inventare').update({
         'praf': praf,
@@ -159,7 +172,9 @@ export const editInventar = async(req: Request, res: Response) => {
         'suruburi': suruburi,
         'remarks': remarks.trim(),
         'inverter': inverter.trim(),
-        'data': data
+        'data': data,
+        'start_time': oraInceput,
+        'end_time': oraSfarsit
     }).eq('id', inventarId).eq('user_id', userId)
 
     if(inventarUpdateError)
