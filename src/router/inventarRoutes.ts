@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { uploadInventar, getMyInventare, getSubordinatesInventare, getAllInventare, editInventar, deleteInventar } from "../controllers/inventarController.js";
+import { uploadInventar, getMyInventare, getSubordinatesInventare, getAllInventare, editInventar, deleteInventar, downloadInventar } from "../controllers/inventarController.js";
 import { getCurrentUser } from "../middleware/getCurrentUser.js";
 import { requireAdmin, requireSuperuser } from "../middleware/requireAdmin.js";
 
@@ -11,5 +11,6 @@ router.get('/subordinates', getCurrentUser, requireAdmin, getSubordinatesInventa
 router.get('/all-inventare', getCurrentUser, requireSuperuser, getAllInventare)
 router.put('/:id', getCurrentUser, editInventar)
 router.delete('/:id', getCurrentUser, deleteInventar)
+router.get('/download/:id', getCurrentUser, requireAdmin, downloadInventar)
 
 export default router;

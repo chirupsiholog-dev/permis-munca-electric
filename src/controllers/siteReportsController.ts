@@ -143,7 +143,7 @@ export const getReportsSubordinates = async(req: Request, res: Response) => {
     const subordinateIds = subordinates.map(user => user.id)
     
     const { data: reportsFromSubordinates, error: reportError } = await supabase
-    .from('site_reports').select('*').in('user_id', subordinateIds);
+    .from('site_reports').select('*').in('user_id', subordinateIds).order('data', {ascending: false});
 
     if (reportError) {
         return res.status(500).json({error: 'Internal server error'});
