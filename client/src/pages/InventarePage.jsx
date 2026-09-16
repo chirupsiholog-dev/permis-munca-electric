@@ -1,21 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
 import SegmentedControl from '../components/ui/SegmentedControl.jsx'
+import Skeleton from '../components/ui/Skeleton.jsx'
 import { useOutletContext } from 'react-router-dom'
+import Modal from '../components/ui/Modal.jsx'
+import InventarForm from '../components/forms/InventarForm.tsx'
 
 /**
  * Vederea de admin peste inventare:
  */
 
 const TABLE_SHELL = { minWidth: 'min-content' }
+const SKELETON_ROWS = 5
 
 // A single definition keeps each heading, value, and column width aligned.
-const COLUMNS = [
+const TABLE_COLUMNS = [
   { key: 'inverter', label: 'Invertor', width: '200px' },
   { key: 'data', label: 'Data', width: '112px' },
   { key: 'turn_on', label: 'Ora de început', width: '100px' },
@@ -36,10 +40,27 @@ const COLUMNS = [
   { key: 'actions', label: 'Acțiuni', width: '180px' },
 ]
 
-const GRID = {
-  display: 'grid',
-  gridTemplateColumns: COLUMNS.map((column) => column.width ?? '128px').join(' '),
-  width: '100%',
+function InventarRowSkeleton({ index, grid }) {
+  return (
+    <motion.div
+      role="row"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, delay: index * 0.04 }}
+      style={grid}
+      className="items-stretch border-b border-line-faint bg-white text-body-sm odd:bg-surface-alt"
+    >
+      {TABLE_COLUMNS.map((column) => (
+        <div
+          key={column.key}
+          role="cell"
+          className={`flex min-w-0 items-center px-4 py-4 ${column.boolean ? 'justify-center' : ''} ${column.key === 'inverter' ? 'sticky left-0 z-10 border-r border-line bg-white group-odd:bg-surface-alt' : ''}`}
+        >
+          <Skeleton className={column.boolean ? 'h-5 w-8' : column.key === 'actions' ? 'h-8 w-24' : 'h-3 w-[68%]'} />
+        </div>
+      ))}
+    </motion.div>
+  )
 }
 
 function ChecklistResult({ value }) {
@@ -111,6 +132,14 @@ export default function InventarePage() {
   const [query, setQuery] = useState('')
 
   const {profile} = useOutletContext();
+  const canDownload = profile.role === 'admin' || profile.role === 'superuser'
+  const COLUMNS = TABLE_COLUMNS.map((column) => column.key === 'actions' && !canDownload
+    ? { ...column, width: '240px' } : column)
+  const GRID = {
+    display: 'grid',
+    gridTemplateColumns: COLUMNS.map((column) => column.width ?? '128px').join(' '),
+    width: '100%',
+  }
 
   const invertorOptions = useMemo(
     () => [
@@ -166,23 +195,16 @@ export default function InventarePage() {
         setIsLoading(true);
         setError(null);
 
-        let res = null;
-
-        if (profile.role === 'admin') {
-          res = await fetch("/api/inventar/subordinates", {method: 'GET', headers: {
-            Authorization: `Bearer ${jwt}`},
-            //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
-            //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
-            signal: controller.signal
-          });
-        } else if (profile.role === 'superuser') {
-            res = await fetch("/api/inventar/all-inventare", {method: 'GET', headers: {
-            Authorization: `Bearer ${jwt}`},
-            //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
-            //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
-            signal: controller.signal
-            });
-        }
+        const endpoint = profile.role === 'admin'
+          ? '/api/inventar/subordinates'
+          : profile.role === 'superuser'
+            ? '/api/inventar/all-inventare'
+            : '/api/inventar/my-inventare'
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${jwt}` },
+          signal: controller.signal,
+        });
 
         if(!res.ok)
           throw new Error(`A apărut o eroare la descărcarea datelor (${res.status})`)
@@ -268,14 +290,82 @@ export default function InventarePage() {
     
   }
 
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingChecklist, setEditingChecklist] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [actionError, setActionError] = useState(null)
+  const deletingRef = useRef(false)
+
+  const handleCloseModal = useCallback(() => {
+    setIsFormOpen(false)
+  }, [])
+
+  const handleFormSuccess = () => {
+    handleCloseModal()
+    fetchResponse()
+  }
+
+  const handleAdd = () => {
+    setEditingChecklist(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEdit = (checklist) => {
+    setEditingChecklist(checklist)
+    setIsFormOpen(true)
+  }
+
+  const handleDelete = async (checklist) => {
+    if (canDownload || deletingRef.current) return
+    if (!window.confirm(`Ștergi checklist-ul pentru ${checklist.inverter}, din ${formatData(checklist.data)}? Această acțiune este ireversibilă.`)) return
+
+    deletingRef.current = true
+    setDeletingId(checklist.id)
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/inventar/${encodeURIComponent(checklist.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      if (!response.ok) throw new Error(`Checklist-ul nu a putut fi șters (${response.status}).`)
+      // Refresh from the API; abort any older list request before replacing it.
+      await fetchResponse()
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      deletingRef.current = false
+      setDeletingId(null)
+    }
+  }
+
   return (
     <PageTransition>
+
+      <Modal
+        isOpen={isFormOpen}
+        onClose={handleCloseModal}
+        label={editingChecklist ? 'Editează checklist-ul' : 'Checklist invertor'}
+      >
+        <InventarForm
+          key={editingChecklist?.id ?? 'new'}
+          initialData={editingChecklist}
+          onSuccess={handleFormSuccess}
+          title={editingChecklist ? 'Editează checklist-ul' : 'Checklist invertor'}
+          submitLabel={editingChecklist ? 'Salvează modificările' : 'Trimite checklist-ul'}
+        />
+      </Modal>
+
       <main className="mx-auto flex w-full min-w-0 max-w-[1240px] flex-1 flex-col gap-5 px-7 pb-[72px] pt-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <PageHeading
             title="Checklist-uri invertoare"
-            subtitle="Toate checklist-urile trimise de echipe."
+            subtitle={canDownload ? 'Toate checklist-urile trimise de echipe.' : 'Checklist-urile de invertoare trimise de tine.'}
           />
+          {
+            !canDownload && (
+              <Button type="button" onClick={handleAdd}>Adaugă checklist</Button>
+            )
+          }
 
         </div>
 
@@ -313,6 +403,7 @@ export default function InventarePage() {
           </div>
         </div>
 
+        {actionError && <p role="alert" className="m-0 text-body-sm text-danger">{actionError}</p>}
         <Card className="min-w-0 overflow-hidden">
           <div role="region" aria-label="Checklist-uri invertoare — derulare orizontală" tabIndex={0} className="overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand">
             <div style={TABLE_SHELL} role="table" aria-label="Checklist-uri invertoare" aria-busy={isLoading}>
@@ -329,11 +420,17 @@ export default function InventarePage() {
               </div>
 
               {isLoading ? (
-                <div role="row">
-                  <div role="cell" aria-colspan={COLUMNS.length} className="px-5 py-9 text-body-sm text-ink-400">
-                    <p role="status" className="sticky left-5 m-0 w-fit max-w-[75vw]">Se încarcă checklist-urile...</p>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.18 }}
+                  role="rowgroup"
+                  aria-label="Se încarcă checklist-urile"
+                >
+                  {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                    <InventarRowSkeleton key={index} index={index} grid={GRID} />
+                  ))}
+                </motion.div>
               ) : error ? (
                 <div role="row">
                   <div role="cell" aria-colspan={COLUMNS.length} className="px-5 py-9 text-body-sm text-danger">
@@ -359,11 +456,20 @@ export default function InventarePage() {
                           role={column.key === 'inverter' ? 'rowheader' : 'cell'}
                           className={`flex min-w-0 items-center px-4 py-4 ${column.boolean ? 'justify-center' : ''} ${column.key === 'inverter' ? 'sticky left-0 z-10 border-r border-line bg-white font-bold text-ink group-odd:bg-surface-alt group-hover:bg-info-bg' : ''}`}
                         >
-                          {column.key === 'actions' ? (
+                          {column.key === 'actions' ? (canDownload ? (
                             <Button type="button" size="sm" variant="outline" aria-label={`Descarcă fișa pentru ${inventar.inverter || 'invertor'}, ${formatData(inventar.data)}`} onClick={() => handleDownloadFișă(inventar.id, inventar.inverter)}>
                               Descarcă fișă
                             </Button>
-                          ) : column.boolean ? (
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Button type="button" size="sm" variant="outline" disabled={deletingId !== null} onClick={() => handleEdit(inventar)} aria-label={`Editează checklist-ul pentru ${inventar.inverter}, ${formatData(inventar.data)}`}>
+                                Editează
+                              </Button>
+                              <Button type="button" size="sm" variant="neutral" className="text-danger" disabled={deletingId !== null} onClick={() => handleDelete(inventar)} aria-label={`Șterge checklist-ul pentru ${inventar.inverter}, ${formatData(inventar.data)}`}>
+                                {deletingId === inventar.id ? 'Se șterge...' : 'Șterge'}
+                              </Button>
+                            </div>
+                          )) : column.boolean ? (
                             <ChecklistResult value={inventar[column.key]} />
                           ) : (
                             <span className={column.key === 'remarks' ? 'whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]' : 'min-w-0 break-words tabular-nums [overflow-wrap:anywhere]'}>

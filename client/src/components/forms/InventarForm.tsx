@@ -27,7 +27,6 @@ interface ChecklistRow {
   id: number
   text: string
   result: ResultValue
-  observations: string
 }
 
 interface MetaState {
@@ -44,7 +43,30 @@ interface UploadedImage {
   name: string
 }
 
+const RESULT_FIELDS = [
+  'praf', 'ventilatoare', 'inventor_deteriorat', 'inventor_sunete',
+  'parametrii_corecti', 'cabluri_conectate', 'cabluri_intacte', 'capace_etansare',
+  'porturi', 'impamantare', 'comutator_curent', 'suruburi',
+] as const
+
+export type InventarRecord = Partial<Record<typeof RESULT_FIELDS[number], boolean | null>> & {
+  id: string | number
+  data?: string
+  inverter?: string
+  turn_on?: string
+  turn_off?: string
+  remarks?: string
+}
+
+const dateForInput = (value = '') => {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(value)
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`
+  const local = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/.exec(value)
+  return local ? `${local[1].padStart(2, '0')}/${local[2].padStart(2, '0')}/${local[3]}` : value
+}
+
 export interface InventarFormProps {
+  initialData?: InventarRecord | null
   title?: string
   subtitle?: string
   submitLabel?: string
@@ -73,11 +95,13 @@ function SectionLabel({ n, title }: SectionLabelProps) {
 interface FieldProps {
   label: string
   placeholder?: string
+  inputMode?: 'text' | 'numeric'
+  maxLength?: number
   value: string
   onChange: (e: ChangeEvent<HTMLInputElement>) => void
 }
 
-function Field({ label, placeholder, value, onChange }: FieldProps) {
+function Field({ label, placeholder, inputMode, maxLength, value, onChange }: FieldProps) {
   return (
     <div>
       <label className="mb-1.5 block text-body-sm text-ink-500">{label}</label>
@@ -86,6 +110,8 @@ function Field({ label, placeholder, value, onChange }: FieldProps) {
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        inputMode={inputMode}
+        maxLength={maxLength}
         className="w-full border border-line bg-surface px-3 py-2.5 text-body-sm text-ink-800 outline-none transition-colors placeholder:text-ink-200 focus:border-brand focus:bg-white"
       />
     </div>
@@ -126,18 +152,42 @@ function ResultToggle({ value, onChange }: ResultToggleProps) {
   )
 }
 
+// Match the date input used by DailyReportForm.
+const maskDate = (raw: string) => {
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+const parseDataToIso = (date: string) => {
+  const [day, month, year] = date.split('/')
+  return `${year}-${month}-${day}`
+}
+
 export default function InventarForm({
   title = 'Checklist invertoare - 6 luni',
   subtitle = 'Completează verificarea semestrială și trimite-o spre semnare.',
   submitLabel = 'Trimite spre semnare',
   onSuccess,
+  initialData = null,
   className = '',
 }: InventarFormProps = {}) {
-  const [meta, setMeta] = useState<MetaState>({ data: '', invertor: '', startTime: '', endTime: '' })
+  const [meta, setMeta] = useState<MetaState>(() => ({
+    data: dateForInput(initialData?.data),
+    invertor: initialData?.inverter ?? '',
+    startTime: initialData?.turn_on ?? '',
+    endTime: initialData?.turn_off ?? '',
+  }))
   const [rows, setRows] = useState<ChecklistRow[]>(
-    OPERATIONS.map((text, i) => ({ id: i + 1, text, result: null, observations: '' })),
+    () => OPERATIONS.map((text, i) => ({
+      id: i + 1,
+      text,
+      result: initialData?.[RESULT_FIELDS[i]] === true ? 'check'
+        : initialData?.[RESULT_FIELDS[i]] === false ? 'cross' : null,
+    })),
   )
-  const [remarks, setRemarks] = useState<string>('')
+  const [remarks, setRemarks] = useState<string>(initialData?.remarks ?? '')
   const [images, setImages] = useState<UploadedImage[]>([])
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [submitted, setSubmitted] = useState<boolean>(false)
@@ -155,6 +205,11 @@ export default function InventarForm({
 
   const updateMeta = (field: keyof MetaState) => (e: ChangeEvent<HTMLInputElement>) =>
     setMeta((m) => ({ ...m, [field]: e.target.value }))
+
+  const handleDataChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const data = maskDate(event.target.value)
+    setMeta((current) => ({ ...current, data }))
+  }
 
   const updateRow = (id: number, patch: Partial<ChecklistRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)))
@@ -186,7 +241,6 @@ export default function InventarForm({
     id: i + 1,
     text,
     result: null,
-    observations: '',
   }))
 
   const clearForm = () => {
@@ -206,6 +260,21 @@ export default function InventarForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting) return
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(meta.data)) {
+      setSubmitted(false)
+      setSubmitError('Data trebuie în format zz/ll/aaaa.')
+      return
+    }
+    if (!meta.invertor.trim() || !meta.startTime.trim() || !meta.endTime.trim()) {
+      setSubmitted(false)
+      setSubmitError('Completați toate câmpurile din informațiile generale.')
+      return
+    }
+    if (rows.some((row) => row.result === null)) {
+      setSubmitted(false)
+      setSubmitError('Completați toate operațiile de verificare.')
+      return
+    }
     setSubmitting(true)
     setSubmitted(false)
     setSubmitError(null)
@@ -224,16 +293,19 @@ export default function InventarForm({
       impamantare: rows[9].result === 'check',
       comutatorCurent: rows[10].result === 'check',
       suruburi: rows[11].result === 'check',
-      remarks,
+      remarks: remarks,
       inverter: meta.invertor,
-      data: meta.data,
+      data: parseDataToIso(meta.data),
       turnon: meta.startTime,
       turnoff: meta.endTime,
     }
 
     try {
-      const res = await fetch('/api/inventar/', {
-        method: 'POST',
+      const endpoint = initialData
+        ? `/api/inventar/${encodeURIComponent(initialData.id)}`
+        : '/api/inventar/'
+      const res = await fetch(endpoint, {
+        method: initialData ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwt}`,
@@ -241,7 +313,13 @@ export default function InventarForm({
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
-        throw new Error(`A apărut o eroare la trimiterea checklistului (${res.status}).`)
+        let errorMessage = `A apărut o eroare la trimiterea checklistului (${res.status}).`
+        const contentType = res.headers.get('content-type') ?? ''
+        if (contentType.includes('application/json')) {
+          const errorBody = await res.json() as { error?: string; message?: string }
+          errorMessage = errorBody.error ?? errorBody.message ?? errorMessage
+        }
+        throw new Error(errorMessage)
       }
       setSubmitted(true)
       clearForm()
@@ -267,7 +345,7 @@ export default function InventarForm({
         <Card className="px-7 py-6">
           <SectionLabel n={1} title="Informații generale" />
           <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
-            <Field label="Data" placeholder="ex. 14.09.2026" value={meta.data} onChange={updateMeta('data')} />
+            <Field label="Data" placeholder="zz/ll/aaaa" inputMode="numeric" maxLength={10} value={meta.data} onChange={handleDataChange} />
             <Field label="Invertor" placeholder="ex. SG110CX-#3" value={meta.invertor} onChange={updateMeta('invertor')} />
             <Field label="Ora de început" placeholder="ex. 09:00" value={meta.startTime} onChange={updateMeta('startTime')} />
             <Field label="Ora de sfârșit" placeholder="ex. 11:30" value={meta.endTime} onChange={updateMeta('endTime')} />
@@ -297,13 +375,7 @@ export default function InventarForm({
                 <span className="pt-0.5 text-body-sm font-medium text-ink-200 sm:pt-0">{row.id}</span>
                 <div>
                   <p className="m-0 text-body-sm leading-snug text-ink-800">{row.text}</p>
-                  <input
-                    type="text"
-                    value={row.observations}
-                    onChange={(e) => updateRow(row.id, { observations: e.target.value })}
-                    placeholder="Observații (opțional)"
-                    className="mt-2 w-full border border-line bg-surface-alt px-2.5 py-1.5 text-body-sm text-ink-800 outline-none transition-colors placeholder:text-ink-200 focus:border-brand focus:bg-white"
-                  />
+
                   <div className="mt-2 sm:hidden">
                     <ResultToggle value={row.result} onChange={(v) => updateRow(row.id, { result: v })} />
                   </div>
@@ -391,7 +463,7 @@ export default function InventarForm({
       </motion.div>
 
       {submitError && <p role="alert" className="m-0 text-body-sm text-warn">{submitError}</p>}
-      {submitted && <p role="status" className="m-0 text-body-sm text-brand">Checklist trimis cu succes.</p>}
+      {submitted && <p role="status" className="m-0 text-body-sm text-brand">{initialData ? 'Checklist modificat cu succes.' : 'Checklist trimis cu succes.'}</p>}
       <Button type="submit" size="lg" fullWidth disabled={submitting}>
         {submitting ? 'Se trimite...' : submitLabel}
       </Button>

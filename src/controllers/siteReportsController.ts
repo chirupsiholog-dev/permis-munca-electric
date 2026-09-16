@@ -24,6 +24,10 @@ function isValidDateString(s: unknown): s is string {
 }
 
 function isValidReport(body: any): body is DailyReport {
+
+  if(!body || typeof body !== 'object' || Array.isArray(body))
+    return false;
+
   if (typeof body?.parc !== 'string' || body.parc.trim().length === 0) return false;
 
   if (!Array.isArray(body.echipa) || body.echipa.length === 0) return false;
@@ -155,6 +159,10 @@ export const getReportsSubordinates = async(req: Request, res: Response) => {
 export const editReport = async (req: Request, res: Response) => {
 
     const userId = req.user;
+    
+    if(req.role !== 'user')
+        return res.status(403).json({error: 'Forbidden'})
+
     const reportId = req.params['id'];
     const {data: reportData, error: reportError} = await supabase.from('site_reports').select('*').eq('id', reportId).eq('user_id', userId).maybeSingle();
 
@@ -198,6 +206,8 @@ export const deleteReport = async(req: Request, res: Response) => {
 
     try{
         const userId = req.user;
+        if(req.role !== 'user')
+            return res.status(403).json({error: 'Forbidden'})
 
         const reportId = req.params.id;
 
@@ -239,8 +249,20 @@ export const downloadReports = async (req: Request, res: Response) => {
         const month = req.query.luna as string;
         const year = req.query.an as string;
         const parc = req.query.parc as string;
-        
+
         let query = supabase.from('site_reports').select('data, parc, echipa, ore_lucrate, inductie_ore, mediu_ore, near_miss, toolbox, mentenanta_corectiva, mentenanta_preventiva').order('data', {ascending: false});
+
+        if(req.role === 'admin'){
+            const user_id = req.user;
+            //get subordianates;
+            const {data: subordinates, error: subordinatesError} = await supabase.from('users').select('id').eq('created_by', user_id);
+            if(subordinatesError){
+                return res.status(500).json({error: 'Internal server error'});
+            }
+            const subordinatesIds = subordinates.map(s => s.id);
+            query = query.in('user_id', subordinatesIds)
+        }
+        
         const{data: reports, error} = await query
 
         if(error){

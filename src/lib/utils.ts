@@ -177,10 +177,7 @@ export async function fillInventarPdf(data: InventarData, filePath: string){
         // The template names the start-time field "turnoff" and the end-time field "turnon".
         const pdfFieldName = textfield === 'turnon' ? 'turnoff' : textfield === 'turnoff' ? 'turnon' : textfield;
         const field = form.getTextField(pdfFieldName);
-        if(textfield === 'remarks')
-            field.setText(removeDiacritics(data[textfield]))
-        else
-            field.setText(data[textfield])
+        field.setText(removeDiacritics(data[textfield]))
     }
 
     const checkboxes: (keyof Omit<InventarData, 'data' | 'remarks' | 'turnoff' | 'inverter' | 'turnon'>)[] = [

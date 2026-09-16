@@ -26,6 +26,9 @@ interface Inventar{
 
 function isValidInventar(body: any): body is Inventar{
 
+    if(!body || typeof body !== 'object' || Array.isArray(body))
+        return false;
+
     for(const field of ['praf', 'ventilatoare', 'inventorDeteriorat', 'inventorSunete', 'parametriiCorecti', 
         'cabluriConectate', 'cabluriIntacte', 'capaceEtansare', 'porturi', 'impamantare', 'comutatorCurent', 'suruburi']){
 
@@ -119,7 +122,9 @@ export const editInventar = async(req: Request, res: Response) => {
 
     const userId = req.user;
     if (!userId) return res.status(401).json({error: 'Unauthorized'});
-
+    
+    if(req.role !== 'user')
+        return res.status(403).json({error: 'Forbidden'})
     const inventarId = req.params['id'];
     const {data: inventarData, error: inventarCheckError} = await supabase.from('inventare').select('*').eq('id', inventarId).eq('user_id', userId).maybeSingle();
     
@@ -179,7 +184,8 @@ export const editInventar = async(req: Request, res: Response) => {
 export const deleteInventar = async(req: Request, res: Response)=>{
 
     const userId = req.user;
-
+    if(req.role !== 'user')
+        return res.status(403).json({error: 'Forbidden'})
     const inventarId = req.params['id'];
     const {data: checkInventarData, error: checkInventarError} = await supabase.from('inventare').select('*').eq('id', inventarId).eq('user_id', userId).maybeSingle();
     if(checkInventarError){
