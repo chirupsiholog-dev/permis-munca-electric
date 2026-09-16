@@ -94,19 +94,20 @@ function SectionLabel({ n, title }: SectionLabelProps) {
 
 interface FieldProps {
   label: string
-  placeholder?: string
+  placeholder?: string,
+  type?: 'text' | 'time',
   inputMode?: 'text' | 'numeric'
   maxLength?: number
   value: string
   onChange: (e: ChangeEvent<HTMLInputElement>) => void
 }
 
-function Field({ label, placeholder, inputMode, maxLength, value, onChange }: FieldProps) {
+function Field({ label, placeholder, type, inputMode, maxLength, value, onChange }: FieldProps) {
   return (
     <div>
       <label className="mb-1.5 block text-body-sm text-ink-500">{label}</label>
       <input
-        type="text"
+        type={type}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
@@ -347,8 +348,8 @@ export default function InventarForm({
           <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
             <Field label="Data" placeholder="zz/ll/aaaa" inputMode="numeric" maxLength={10} value={meta.data} onChange={handleDataChange} />
             <Field label="Invertor" placeholder="ex. SG110CX-#3" value={meta.invertor} onChange={updateMeta('invertor')} />
-            <Field label="Ora de început" placeholder="ex. 09:00" value={meta.startTime} onChange={updateMeta('startTime')} />
-            <Field label="Ora de sfârșit" placeholder="ex. 11:30" value={meta.endTime} onChange={updateMeta('endTime')} />
+            <Field label="Ora de început" placeholder="ex. 09:00" type="time" maxLength={10} value={meta.startTime} onChange={updateMeta('startTime')} />
+            <Field label="Ora de sfârșit" placeholder="ex. 11:30" type="time" maxLength={10} value={meta.endTime} onChange={updateMeta('endTime')} />
           </div>
         </Card>
       </motion.div>
