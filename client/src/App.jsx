@@ -12,7 +12,7 @@ import SiteReportsPage from './pages/SiteReportsPage.jsx'
 import AdminSiteReportsPage from './pages/AdminSiteReportsPage.jsx'
 import CreateNewAccount from './pages/CreateNewAccount.jsx'
 import SignupPage from './pages/SingupPage.jsx'
-import InventarePage from './pages/InventarePage.tsx'
+import InventarePage from './pages/InventarePage.jsx'
 
 /**
  * No AnimatePresence here on purpose. Keying <Routes> by pathname remounts the

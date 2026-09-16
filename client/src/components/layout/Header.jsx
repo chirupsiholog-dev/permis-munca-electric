@@ -11,7 +11,7 @@ const NAV = [
   { to: '/arhiva', label: 'Arhivă' },
   { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
   {to: '/cont-nou', label: 'Cont nou'},
-  {to: '/inventare', label: 'Inventare'}
+  {to: '/inventare', label: 'Invertoare'}
 ]
 
 export default function Header({ user }) {

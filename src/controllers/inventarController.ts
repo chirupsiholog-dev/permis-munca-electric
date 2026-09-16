@@ -278,7 +278,7 @@ export const downloadInventar = async (req: Request, res: Response) => {
   if (req.role === 'admin') {
     const { data, error } = await supabase
       .from('inventare')
-      .select('user_id, users(created_by)')
+      .select('user_id, inverter, users(created_by)')
       .eq('id', inventarId)
       .maybeSingle();
 
@@ -304,7 +304,7 @@ export const downloadInventar = async (req: Request, res: Response) => {
     const pdfBytes = await fillInventarPdf(toInventarData(data), filePath);
 
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
-    res.setHeader('Content-Disposition', `attachment; filename="inventar_${inventarId}.pdf"`)
+    res.setHeader('Content-Disposition', `attachment; filename="inventar_${inventarId}_${data.inverter}.pdf"`)
     res.setHeader('Content-Type', 'application/pdf');
 
     res.send(pdfBytes);
