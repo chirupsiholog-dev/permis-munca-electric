@@ -304,7 +304,9 @@ export const downloadInventar = async (req: Request, res: Response) => {
     const pdfBytes = await fillInventarPdf(toInventarData(data), filePath);
 
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
-    res.setHeader('Content-Disposition', `attachment; filename="inventar_${inventarId}_${data.inverter}.pdf"`)
+    const filename = `inventar_${inventarId}_${data.inverter}.pdf`
+      .replace(/[^A-Za-z0-9._-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
     res.setHeader('Content-Type', 'application/pdf');
 
     res.send(pdfBytes);
