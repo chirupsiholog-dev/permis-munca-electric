@@ -185,44 +185,82 @@ export default function InventarePage() {
     }
   }
 
+  // sending iamges as base64 strings, not needed anymore since multer is used
+  // const fileToBase64 = (file: any) => new Promise((resolve, reject) => {
+  //   const reader = new FileReader();
+  //   reader.readAsDataURL(file);
+  //   reader.onload = () => resolve(reader.result)
+  //   reader.onerror = (error) => reject(error);
+  // })
+
   const handleSubmit = async () => {
     setSubmitting(true)
     const jwt = localStorage.getItem('token')
 
     const form = new FormData()
-    form.append('meta', JSON.stringify(meta))
-    form.append('rows', JSON.stringify(rows))
-    form.append('remarks', remarks)
-    images.forEach((img) => form.append('images', img.file, img.name))
+    // form.append('meta', JSON.stringify(meta))
+    // form.append('rows', JSON.stringify(rows))
+    // form.append('remarks', remarks)
+    // images.forEach((img) => form.append('images', img.file, img.name))
 
-    let payload = {
-      praf: rows[0].result === 'check',
-      ventilatoare: rows[1].result === 'check',
-      inventorDeteriorat: rows[2].result === 'check',
-      inventorSunete: rows[3].result === 'check',
-      parametriiCorecti: rows[4].result === 'check',
-      cabluriConectate: rows[5].result === 'check',
-      cabluriIntacte: rows[6].result === 'check',
-      capaceEtansare: rows[7].result === 'check',
-      porturi: rows[8].result === 'check',
-      impamantare: rows[9].result === 'check',
-      comutatorCurent: rows[10].result === 'check',
-      suruburi: rows[11].result === 'check',
-      remarks,
-      inverter: meta.invertor,
-      data: meta.data,
-      oraInceput: meta.startTime,
-      oraSfarsit: meta.endTime,
+    // const base64Images = await Promise.all(images.map((img) => fileToBase64(img.file)))
+
+    // let payload = {
+    //   praf: rows[0].result === 'check',
+    //   ventilatoare: rows[1].result === 'check',
+    //   inventorDeteriorat: rows[2].result === 'check',
+    //   inventorSunete: rows[3].result === 'check',
+    //   parametriiCorecti: rows[4].result === 'check',
+    //   cabluriConectate: rows[5].result === 'check',
+    //   cabluriIntacte: rows[6].result === 'check',
+    //   capaceEtansare: rows[7].result === 'check',
+    //   porturi: rows[8].result === 'check',
+    //   impamantare: rows[9].result === 'check',
+    //   comutatorCurent: rows[10].result === 'check',
+    //   suruburi: rows[11].result === 'check',
+    //   remarks,
+    //   inverter: meta.invertor,
+    //   data: meta.data,
+    //   turnon: meta.startTime,
+    //   turnoff: meta.endTime,
+    // }
+
+    form.append('praf', String(rows[0].result === 'check'))
+    form.append('ventilatoare', String(rows[1].result === 'check'))
+    form.append('inventorDeteriorat', String(rows[2].result === 'check'))
+    form.append('inventorSunete', String(rows[3].result === 'check'))
+    form.append('parametriiCorecti', String(rows[4].result === 'check'))
+    form.append('cabluriConectate', String(rows[5].result === 'check'))
+    form.append('cabluriIntacte', String(rows[6].result === 'check'))
+    form.append('capaceEtansare', String(rows[7].result === 'check'))
+    form.append('porturi', String(rows[8].result === 'check'))
+    form.append('impamantare', String(rows[9].result === 'check'))
+    form.append('comutatorCurent', String(rows[10].result === 'check'))
+    form.append('suruburi', String(rows[11].result === 'check'))
+
+    form.append('remarks', remarks || '');
+    form.append('inverter', meta.invertor || '');
+    form.append('data', meta.data || '');
+    form.append('turnon', meta.startTime || '');
+    form.append('turnoff', meta.endTime || '');
+
+    if (images.length > 0) {
+      //form.append('imagini', images[0].file, images[0].name)
+      for (const img in images) {
+        form.append('imagini', images[img].file);
+      }
     }
 
     try {
       const res = await fetch('/api/inventar/', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json', 
-          Authorization: `Bearer ${jwt}` },
-          body: JSON.stringify(payload),
-      })
+          // 'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}` 
+        },
+          body: form,
+      },
+      )
       if (res.ok) {
         setSubmitted(true)
         clearForm()

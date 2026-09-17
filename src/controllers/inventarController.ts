@@ -3,6 +3,13 @@ import { supabase } from "../lib/supabaseClient.js";
 import { fillInventarPdf, type InventarData } from "../lib/utils.js";
 import path from "path";
 
+interface UploadedImage {
+  id: string
+  url: string
+  file: File
+  name: string
+}
+
 interface Inventar{
 
     praf: boolean,
@@ -21,7 +28,8 @@ interface Inventar{
     data: string,
     inverter: string,
     turnon: string,
-    turnoff: string
+    turnoff: string,
+    imagini: UploadedImage[]
 }
 
 function isValidInventar(body: any): body is Inventar{
@@ -48,8 +56,8 @@ export const uploadInventar = async (req: Request, res: Response) => {
 
     const userId = req.user;
     if (!userId) return res.status(401).json({error: 'Unauthorized'})
-    if(!isValidInventar(req.body))
-        return res.status(400).json({error: 'Inventarul nu este complet'})
+    // if(!isValidInventar(req.body))
+    //     return res.status(400).json({error: 'Inventarul nu este complet'})
 
     const {praf,
     ventilatoare,
@@ -64,6 +72,54 @@ export const uploadInventar = async (req: Request, res: Response) => {
     comutatorCurent,
     suruburi,
     remarks, inverter, data, turnon, turnoff} = req.body
+
+    const files = req.files as Express.Multer.File[];
+    // const fileNames: string[] = [];
+
+    // for (const file of files) {
+    //     fileNames.push(file.originalname);
+    // }
+
+    // //check if the array of images exists
+    // if (!files || !req.files) {
+    //     return;
+    // }
+    
+    //we use promise because we need to iterate through all the files
+    const publicUrls = await Promise.all(
+        files.map(async (file) => {
+            const uniqueName = `${Date.now()}_${file.originalname}`;
+
+            //save the images to supabase bucket
+            const { error: storageError } = await supabase.storage
+            .from('Images') //name of the bucket
+            .upload(uniqueName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false,
+            })
+
+            if (storageError) {
+            return res.status(500).json({
+                    'error': 'Failed to save the images to supabase bucket',
+                });
+            }
+
+            //get the url generated for the images
+            const { data } = supabase.storage
+            .from('Images')
+            .getPublicUrl(uniqueName)
+
+            return data.publicUrl;
+        })
+    );
+
+    if (!publicUrls) {
+        return res.status(500).json({
+            'error': 'Failed to retrieve the URL of the stored images'
+        });
+    }
+
+    console.log(publicUrls)
 
     const {error: inventarError} = await supabase.from('inventare').insert({
         'user_id': userId,
@@ -83,11 +139,14 @@ export const uploadInventar = async (req: Request, res: Response) => {
         'inverter': inverter.trim(),
         'data': data,
         'turn_on': turnon.trim(),
-        'turn_off': turnoff.trim()
+        'turn_off': turnoff.trim(),
+        'images': [publicUrls]//needs square brackets since it is an array of URLs
     })
 
-    if(inventarError)
-        return res.status(500).json({error: 'Internal server error'});
+    if(inventarError){
+        console.log(inventarError.hint)
+        return res.status(502).json({error: 'Internal server error'});
+    }
 
     return res.status(200).json({success: true, message: 'Inventar salvat cu succes'})
 
