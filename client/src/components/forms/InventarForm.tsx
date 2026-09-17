@@ -43,6 +43,11 @@ interface UploadedImage {
   name: string
 }
 
+interface ExistingImage {
+  path: string
+  url: string
+}
+
 const RESULT_FIELDS = [
   'praf', 'ventilatoare', 'inventor_deteriorat', 'inventor_sunete',
   'parametrii_corecti', 'cabluri_conectate', 'cabluri_intacte', 'capace_etansare',
@@ -56,6 +61,7 @@ export type InventarRecord = Partial<Record<typeof RESULT_FIELDS[number], boolea
   turn_on?: string
   turn_off?: string
   remarks?: string
+  images?: ExistingImage[]
 }
 
 const dateForInput = (value = '') => {
@@ -189,6 +195,7 @@ export default function InventarForm({
     })),
   )
   const [remarks, setRemarks] = useState<string>(initialData?.remarks ?? '')
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>(initialData?.images ?? [])
   const [images, setImages] = useState<UploadedImage[]>([])
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [submitted, setSubmitted] = useState<boolean>(false)
@@ -236,6 +243,10 @@ export default function InventarForm({
     setImages((imgs) => imgs.filter((image) => image.id !== id))
   }
 
+  const removeExistingImage = (path: string) => {
+    setExistingImages((storedImages) => storedImages.filter((image) => image.path !== path))
+  }
+
   const answeredCount = rows.filter((r) => r.result).length
 
   const emptyRows = () => OPERATIONS.map((text, i) => ({
@@ -280,25 +291,63 @@ export default function InventarForm({
     setSubmitted(false)
     setSubmitError(null)
     const jwt = localStorage.getItem('token')
+    const form = new FormData()
 
-    const payload = {
-      praf: rows[0].result === 'check',
-      ventilatoare: rows[1].result === 'check',
-      inventorDeteriorat: rows[2].result === 'check',
-      inventorSunete: rows[3].result === 'check',
-      parametriiCorecti: rows[4].result === 'check',
-      cabluriConectate: rows[5].result === 'check',
-      cabluriIntacte: rows[6].result === 'check',
-      capaceEtansare: rows[7].result === 'check',
-      porturi: rows[8].result === 'check',
-      impamantare: rows[9].result === 'check',
-      comutatorCurent: rows[10].result === 'check',
-      suruburi: rows[11].result === 'check',
-      remarks: remarks,
-      inverter: meta.invertor,
-      data: parseDataToIso(meta.data),
-      turnon: meta.startTime,
-      turnoff: meta.endTime,
+    // form.append('meta', JSON.stringify(meta))
+    // form.append('rows', JSON.stringify(rows))
+    // form.append('remarks', remarks)
+    // images.forEach((img) => form.append('images', img.file, img.name))
+
+    // const base64Images = await Promise.all(images.map((img) => fileToBase64(img.file)))
+
+    // let payload = {
+    //   praf: rows[0].result === 'check',
+    //   ventilatoare: rows[1].result === 'check',
+    //   inventorDeteriorat: rows[2].result === 'check',
+    //   inventorSunete: rows[3].result === 'check',
+    //   parametriiCorecti: rows[4].result === 'check',
+    //   cabluriConectate: rows[5].result === 'check',
+    //   cabluriIntacte: rows[6].result === 'check',
+    //   capaceEtansare: rows[7].result === 'check',
+    //   porturi: rows[8].result === 'check',
+    //   impamantare: rows[9].result === 'check',
+    //   comutatorCurent: rows[10].result === 'check',
+    //   suruburi: rows[11].result === 'check',
+    //   remarks,
+    //   inverter: meta.invertor,
+    //   data: meta.data,
+    //   turnon: meta.startTime,
+    //   turnoff: meta.endTime,
+    // }
+
+    form.append('praf', String(rows[0].result === 'check'))
+    form.append('ventilatoare', String(rows[1].result === 'check'))
+    form.append('inventorDeteriorat', String(rows[2].result === 'check'))
+    form.append('inventorSunete', String(rows[3].result === 'check'))
+    form.append('parametriiCorecti', String(rows[4].result === 'check'))
+    form.append('cabluriConectate', String(rows[5].result === 'check'))
+    form.append('cabluriIntacte', String(rows[6].result === 'check'))
+    form.append('capaceEtansare', String(rows[7].result === 'check'))
+    form.append('porturi', String(rows[8].result === 'check'))
+    form.append('impamantare', String(rows[9].result === 'check'))
+    form.append('comutatorCurent', String(rows[10].result === 'check'))
+    form.append('suruburi', String(rows[11].result === 'check'))
+
+    form.append('remarks', remarks || '');
+    form.append('inverter', meta.invertor || '');
+    form.append('data', meta.data || '');
+    form.append('turnon', meta.startTime || '');
+    form.append('turnoff', meta.endTime || '');
+
+    if (images.length > 0) {
+      //form.append('imagini', images[0].file, images[0].name)
+      for (const img in images) {
+        form.append('imagini', images[img].file);
+      }
+    }
+
+    if (initialData) {
+      form.append('existingImages', JSON.stringify(existingImages))
     }
 
     try {
@@ -308,10 +357,9 @@ export default function InventarForm({
       const res = await fetch(endpoint, {
         method: initialData ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${jwt}`,
         },
-        body: JSON.stringify(payload),
+        body: form,
       })
       if (!res.ok) {
         let errorMessage = `A apărut o eroare la trimiterea checklistului (${res.status}).`
@@ -432,8 +480,27 @@ export default function InventarForm({
             />
           </div>
 
-          {images.length > 0 ? (
+          {existingImages.length > 0 || images.length > 0 ? (
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {existingImages.map((image) => (
+                <div key={image.path} className="group relative overflow-hidden border border-line bg-surface-alt">
+                  <img src={image.url} alt="Fotografie existentă" className="h-28 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeExistingImage(image.path)
+                    }}
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center bg-ink/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Elimină"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                  <p className="m-0 truncate border-t border-line bg-white px-2 py-1 text-body-sm text-ink-500">
+                    Fotografie existentă
+                  </p>
+                </div>
+              ))}
               {images.map((img) => (
                 <div key={img.id} className="group relative overflow-hidden border border-line bg-surface-alt">
                   <img src={img.url} alt={img.name} className="h-28 w-full object-cover" />

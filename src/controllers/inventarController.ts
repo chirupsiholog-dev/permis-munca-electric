@@ -27,6 +27,29 @@ interface Inventar{
     existingImages: string
 }
 
+const INVENTAR_BOOLEAN_FIELDS = [
+    'praf',
+    'ventilatoare',
+    'inventorDeteriorat',
+    'inventorSunete',
+    'parametriiCorecti',
+    'cabluriConectate',
+    'cabluriIntacte',
+    'capaceEtansare',
+    'porturi',
+    'impamantare',
+    'comutatorCurent',
+    'suruburi',
+] as const;
+
+//because we pass multiform data instead of json, the boolean fields come back as "true" and "false" instead of true and false
+function normalizeInventarBooleans(body: Record<string, unknown>) {
+    for (const field of INVENTAR_BOOLEAN_FIELDS) {
+        if (body[field] === 'true') body[field] = true;
+        if (body[field] === 'false') body[field] = false;
+    }
+}
+
 async function uploadPhotoWithRetry(photo: Express.Multer.File, uniqueFileName: string, inverter: string, data: string, noRetries: number){
 
     for(let i = 0; i < noRetries; i++){
@@ -82,6 +105,7 @@ export const uploadInventar = async (req: Request, res: Response) => {
 
     const userId = req.user;
     if (!userId) return res.status(401).json({error: 'Unauthorized'})
+    normalizeInventarBooleans(req.body);
     if(!isValidInventar(req.body))
         return res.status(400).json({error: 'Inventarul nu este complet'})
 
@@ -190,6 +214,7 @@ export const editInventar = async(req: Request, res: Response) => {
         return res.status(404).json({error: 'Inventar invalid'});
     }
 
+    normalizeInventarBooleans(req.body);
     if(!isValidInventar(req.body)){
         return res.status(400).json({ error: 'Toate campurile sunt obligatorii si neaparat valide' });
     }
@@ -314,8 +339,12 @@ export const deleteInventar = async(req: Request, res: Response)=>{
         return res.status(404).json({error: 'Inventar invalid'});
     }
 
+    const images = Array.isArray(checkInventarData.images)
+        ? checkInventarData.images
+        : []
+
     //delete images from storage first
-    await supabase.storage.from('Images').remove(checkInventarData.images.map((p: {path: string, url: string}) => p.path))
+    await supabase.storage.from('Images').remove(images.map((p: {path: string, url: string}) => p.path))
 
     const {error: deleteInventarError} = await supabase.from('inventare').delete().eq('user_id', userId).eq('id', inventarId);
     if(deleteInventarError)
