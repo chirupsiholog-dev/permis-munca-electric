@@ -50,7 +50,7 @@ function normalizeInventarBooleans(body: Record<string, unknown>) {
     }
 }
 
-async function uploadPhotoWithRetry(photo: Express.Multer.File, uniqueFileName: string, inverter: string, data: string, noRetries: number){
+async function uploadPhotoWithRetry(photo: Express.Multer.File, uniqueFileName: string, noRetries: number){
 
     for(let i = 0; i < noRetries; i++){
 
@@ -138,11 +138,12 @@ export const uploadInventar = async (req: Request, res: Response) => {
 
     const photosUrls = [];
     let failedPhotos = 0;
+    const safeData = data.replace(/[/.\s]/g, '.');
 
     for(const photo of photos ?? []){
 
-        const uniqueFileName = `poza_checklist_${inverter}_${data}_${crypto.randomUUID()}`
-        const storageUrl = await uploadPhotoWithRetry(photo, uniqueFileName, inverter, data, 3)
+        const uniqueFileName = `poza_checklist_${inverter}_${safeData}_${crypto.randomUUID()}`
+        const storageUrl = await uploadPhotoWithRetry(photo, uniqueFileName, 3)
         if(!storageUrl)
             failedPhotos++;
         else
@@ -284,10 +285,11 @@ export const editInventar = async(req: Request, res: Response) => {
     //upload to storage the new photos uploaded by the user
     let failedPhotos = 0;
     const newPhotosUrls = [];
+    const safeData = data.replace(/[/.\s]/g, '.');
 
     for(const photo of newPhotos){
-        const uniqueFileName = `poza_checklist_${inverter}_${data}_${crypto.randomUUID()}`
-        const storageUrl = await uploadPhotoWithRetry(photo, uniqueFileName, inverter, data, 3)
+        const uniqueFileName = `poza_checklist_${inverter}_${safeData}_${crypto.randomUUID()}`
+        const storageUrl = await uploadPhotoWithRetry(photo, uniqueFileName, 3)
         if(!storageUrl)
             failedPhotos++;
         else
