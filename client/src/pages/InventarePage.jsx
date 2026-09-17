@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { Check, X } from 'lucide-react'
+
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -10,6 +12,7 @@ import Skeleton from '../components/ui/Skeleton.jsx'
 import { useOutletContext } from 'react-router-dom'
 import Modal from '../components/ui/Modal.jsx'
 import InventarForm from '../components/forms/InventarForm.tsx'
+import Photos from '../components/ui/Photos.tsx'
 
 /**
  * Vederea de admin peste inventare:
@@ -37,6 +40,7 @@ const TABLE_COLUMNS = [
   { key: 'comutator_curent', label: 'Comutator curent continuu', boolean: true },
   { key: 'suruburi', label: 'Verificare șuruburi', boolean: true },
   { key: 'remarks', label: 'Observații', width: 'minmax(260px, 1fr)' },
+  { key: 'images', label: 'Imagini'},
   { key: 'actions', label: 'Acțiuni', width: '180px' },
 ]
 
@@ -67,7 +71,7 @@ function ChecklistResult({ value }) {
   if (typeof value !== 'boolean') return <span aria-label="Nespecificat" className="text-ink-400">—</span>
   return (
     <span className={`inline-flex min-w-12 justify-center rounded px-2 py-1 text-meta font-bold ${value ? 'bg-info-bg text-brand-text' : 'bg-surface-alt text-danger'}`}>
-      {value ? 'Da' : 'Nu'}
+      {value ? <Check size={16} /> : <X size={16} />}
     </span>
   )
 }
@@ -296,6 +300,17 @@ export default function InventarePage() {
   const [actionError, setActionError] = useState(null)
   const deletingRef = useRef(false)
 
+  const [isPhotosOpen, setIsPhotosOpen] = useState(false)
+  
+  const currentInventarRef = useRef(null)
+  const handleOpenPhotos = (inventar)=>{
+    currentInventarRef.current = inventar;
+    setIsPhotosOpen(true);
+  }
+  const handleClosePhotos = useCallback(() => {
+    setIsPhotosOpen(false)
+  }, [])
+
   const handleCloseModal = useCallback(() => {
     setIsFormOpen(false)
   }, [])
@@ -353,6 +368,19 @@ export default function InventarePage() {
           title={editingChecklist ? 'Editează checklist-ul' : 'Checklist invertor'}
           submitLabel={editingChecklist ? 'Salvează modificările' : 'Trimite checklist-ul'}
         />
+      </Modal>
+
+      <Modal
+        isOpen = {isPhotosOpen}
+        onClose={handleClosePhotos}
+        label='Imagini ataște'>
+
+        <Photos
+          title = 'Fotografii ataște'
+          subtitle='Imagini ataște checklist-ului'
+          photos={currentInventarRef.current?.images ?? []}
+        />
+
       </Modal>
 
       <main className="mx-auto flex w-full min-w-0 max-w-[1240px] flex-1 flex-col gap-5 px-7 pb-[72px] pt-10">
@@ -471,9 +499,14 @@ export default function InventarePage() {
                             </div>
                           )) : column.boolean ? (
                             <ChecklistResult value={inventar[column.key]} />
-                          ) : (
+                          ) : column.key === 'images'?(!Array.isArray(inventar.images) || inventar.images.length === 0 ?'-':(
+                            <button className="text-sky-400 cursor-pointer underline underline-offset-2 hover:text-sky-500" onClick={() => handleOpenPhotos(inventar)}>
+                              Vezi imagini
+                            </button>
+                          )):
+                          (
                             <span className={column.key === 'remarks' ? 'whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]' : 'min-w-0 break-words tabular-nums [overflow-wrap:anywhere]'}>
-                              {column.key === 'data' ? formatData(inventar.data) : inventar[column.key] || '—'}
+                              {column.key === 'data' ? formatData(inventar.data) : column.key !== 'images'? (inventar[column.key] || '—') : 'Imagini'}
                             </span>
                           )}
                         </div>
