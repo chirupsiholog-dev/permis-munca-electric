@@ -78,6 +78,17 @@ async function uploadPhotoWithRetry(photo: Express.Multer.File, uniqueFileName: 
     return null;
 }
 
+async function getSignedUrl(inventar: any){
+
+     const images = Array.isArray(inventar.images)?inventar.images : []
+    for(let image of images){
+        const {data, error} = await supabase.storage.from('Images').createSignedUrl(image.path, 60 * 60)
+        if(!error && data?.signedUrl)
+            image.url = data.signedUrl
+    }
+
+}
+
 function isValidInventar(body: any): body is Inventar{
 
     if(!body || typeof body !== 'object' || Array.isArray(body))
@@ -192,6 +203,8 @@ export const getMyInventare = async(req: Request, res: Response)=>{
     if(error){
         return res.status(500).json({error: 'Internal server error'});
     }
+
+    await Promise.all((data??[]).map(i => getSignedUrl(i)))
 
     return res.status(200).json({success: true, data: data})
 }
@@ -379,6 +392,10 @@ export const getSubordinatesInventare
     if(subordinatesInventareError){
         return res.status(500).json({error: 'Internal server error'});
     }
+    
+    
+    await Promise.all((subordinatesInventare??[]).map(i => getSignedUrl(i)))
+
 
     return res.status(200).json({success: true, data: subordinatesInventare})
 
@@ -401,6 +418,8 @@ export const getAllInventare = async(req: Request, res: Response) => {
     if(inventareError){
         return res.status(500).json({error: 'Internal server error'});
     }
+
+    await Promise.all((inventare??[]).map(i => getSignedUrl(i)))
 
     return res.status(200).json({success: true, data: inventare})
 }
