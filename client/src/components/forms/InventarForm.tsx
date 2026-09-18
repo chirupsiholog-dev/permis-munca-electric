@@ -353,7 +353,7 @@ export default function InventarForm({
     try {
       const endpoint = initialData
         ? `/api/inventar/${encodeURIComponent(initialData.id)}`
-        : '/api/inventar/'
+        : '/api/inventar'
       const res = await fetch(endpoint, {
         method: initialData ? 'PUT' : 'POST',
         headers: {
