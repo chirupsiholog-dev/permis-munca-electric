@@ -5,27 +5,31 @@ import LogoutButton from './LogoutButton.jsx'
 import UserBadge from './UserBadge.jsx'
 import { homePath } from '../../lib/roles.js'
 
-const NAV = [
+const ADMIN_NAV = [
   { to: '/', label: 'Acasă', end: true },
   { to: '/permise', label: 'Permise' },
   { to: '/arhiva', label: 'Arhivă' },
   { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
-  {to: '/cont-nou', label: 'Cont nou'}
+  {to: '/cont-nou', label: 'Cont nou'},
+  {to: '/inventare', label: 'Invertoare'}
+]
+
+const USER_NAV = [
+  { to: '/pagina-rapoarte', label: 'Rapoarte' },
+  { to: '/inventare', label: 'Invertoare' },
 ]
 
 export default function Header({ user }) {
-  // Non-adminii au o singură pagină, deci nu au între ce naviga: rămân doar
-  // sigla (care duce tot acolo), numele și ieșirea din cont.
-  const nav = user.role === 'superuser' || user.role === 'admin' ? NAV : []
+  const nav = user.role === 'superuser' || user.role === 'admin' ? ADMIN_NAV : USER_NAV
 
   return (
-    <header className="flex h-[62px] flex-none items-center justify-between border-b border-line bg-surface px-7">
+    <header className="flex min-h-[62px] flex-none flex-wrap items-center justify-between gap-4 border-b border-line bg-surface px-4 py-3 sm:px-7">
       <NavLink to={homePath(user.role)} aria-label="Permis Muncă Electric — pagina principală">
         <Wordmark />
       </NavLink>
 
-      <div className="flex items-center gap-[22px]">
-        <nav className="flex items-center gap-[22px] text-nav font-bold uppercase tracking-label">
+      <div className="flex flex-wrap items-center gap-4 sm:gap-[22px]">
+        <nav aria-label="Navigare principală" className="flex items-center gap-[22px] text-nav font-bold uppercase tracking-label">
           {nav.map((item) => (
             <NavLink
               key={item.to}

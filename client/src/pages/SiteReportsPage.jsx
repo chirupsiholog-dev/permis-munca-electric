@@ -12,6 +12,7 @@ import Modal from '../components/ui/Modal.jsx'
 import DailyReportForm from './RaportOnSite.jsx'
 
 /**
+ * PAGE FOR USER
  * Singura pagină a utilizatorilor non-admin: rapoartele on-site proprii.
  *
  * Coloanele urmăresc exact corpul cererii POST din siteReportsController
@@ -259,7 +260,7 @@ export default function SiteReportsPage() {
         setIsLoading(true);
         setError(null);
 
-        const res = await fetch('/api/site-reports', {method: 'GET', headers: {
+        const res = await fetch('/api/site-reports/my-reports', {method: 'GET', headers: {
           Authorization: `Bearer ${jwt}`},
           //if the request is cancelled, stop the fetch - this prevents the request keeping on running even though it was cancelled and in some cases
           //, when it finishes, try to set data on a component that is no longer rendered (if the user changed pages for example)
