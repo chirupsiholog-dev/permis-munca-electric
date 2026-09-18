@@ -133,3 +133,66 @@ export async function fillPdf(data: PdfData, filePath: string){
    return Buffer.from(savedPdfBytes);
 
 }
+
+export interface InventarData{
+
+    praf: boolean,
+    ventilatoare: boolean,
+    inventorDeteriorat: boolean,
+    inventorSunete: boolean,
+    parametriiCorecti: boolean,
+    cabluriConectate: boolean,
+    cabluriIntacte: boolean,
+    capaceEtansare: boolean,
+    porturi: boolean,
+    impamantare: boolean,
+    comutatorCurent: boolean,
+    suruburi: boolean
+    remarks: string;
+    data: string,
+    inverter: string
+    turnoff: string
+    turnon: string
+}
+
+function removeDiacritics(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+} 
+
+export async function fillInventarPdf(data: InventarData, filePath: string){
+
+    const pdfBytes = await readFile(filePath);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const form = pdfDoc.getForm();
+
+    const textfields: (keyof Omit<InventarData, 'praf' | 'ventilatoare' |'inventorDeteriorat' | 'inventorSunete' | 'parametriiCorecti' | 'cabluriConectate' | "cabluriIntacte" | "capaceEtansare"	| "porturi"	| "impamantare"	 | "comutatorCurent" | 'suruburi'>)[] = [
+        'data',
+        'turnoff',
+        'inverter',
+        'turnon',
+        'remarks'
+    ]
+
+    for(const textfield of textfields){
+        // The template names the start-time field "turnoff" and the end-time field "turnon".
+        const pdfFieldName = textfield === 'turnon' ? 'turnoff' : textfield === 'turnoff' ? 'turnon' : textfield;
+        const field = form.getTextField(pdfFieldName);
+        field.setText(removeDiacritics(data[textfield]))
+    }
+
+    const checkboxes: (keyof Omit<InventarData, 'data' | 'remarks' | 'turnoff' | 'inverter' | 'turnon'>)[] = [
+        'praf', 'ventilatoare', 'inventorDeteriorat', 'inventorSunete', 'parametriiCorecti', 
+        'cabluriConectate', 'cabluriIntacte', 'capaceEtansare', 'porturi', 'impamantare', 'comutatorCurent', 'suruburi'
+    ]
+
+    for(const checkbox of checkboxes){
+        const box = form.getCheckBox(checkbox)
+        if(data[checkbox])
+            box.check();
+    }
+
+    form.flatten();
+    const savedPdfBytes = await pdfDoc.save();
+    return Buffer.from(savedPdfBytes)
+
+}
