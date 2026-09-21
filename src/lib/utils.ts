@@ -237,7 +237,7 @@ export async function fillInventarPdf(data: InventarData, images: ImageObject[],
         } else if (isPng(imageBytes)) {
             embeddedImage = await pdfDoc.embedPng(imageBuffer);
         } else {
-            return null; //unhandled case
+            continue; //unhandled case, skip unsupported images
         }
 
         const page = pdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
