@@ -478,7 +478,7 @@ export const downloadInventar = async (req: Request, res: Response) => {
     }
 
     const filePath = path.join(process.cwd(), 'src', 'assets', 'Check_list_Invertoare_6_luni_AcroForm-3.pdf') 
-    const pdfBytes = await fillInventarPdf(toInventarData(data), filePath);
+    const pdfBytes = await fillInventarPdf(toInventarData(data), data.images, filePath);
 
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
     const filename = `inventar_${inventarId}_${data.inverter}.pdf`

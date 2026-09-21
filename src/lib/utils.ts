@@ -5,6 +5,7 @@ import {PDFDocument} from 'pdf-lib';
 //exists under Node's native ESM. Vercel bundles this to CJS, where the default
 //is undefined and every call throws "cannot read properties of undefined".
 import { readFile } from 'fs/promises'
+import { supabase } from "./supabaseClient.js";
 
 export async function generateZip(data: {documents: Document[], pdfAuditTrail: string}){
 
@@ -134,6 +135,11 @@ export async function fillPdf(data: PdfData, filePath: string){
 
 }
 
+export interface ImageObject {
+    url: string;
+    path: string;
+}
+
 export interface InventarData{
 
     praf: boolean,
@@ -152,14 +158,27 @@ export interface InventarData{
     data: string,
     inverter: string
     turnoff: string
-    turnon: string
+    turnon: string,
 }
 
 function removeDiacritics(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 } 
 
-export async function fillInventarPdf(data: InventarData, filePath: string){
+function isJpeg(bytes: Uint8Array): boolean {
+    return bytes[0] === 0xFF && bytes[1] === 0xD8;
+}
+
+function isPng(bytes: Uint8Array): boolean {
+    return (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 && // 'P'
+    bytes[2] === 0x4E && // 'N'
+    bytes[3] === 0x47    // 'G'
+  );
+}
+
+export async function fillInventarPdf(data: InventarData, images: ImageObject[], filePath: string){
 
     const pdfBytes = await readFile(filePath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -190,6 +209,46 @@ export async function fillInventarPdf(data: InventarData, filePath: string){
         if(data[checkbox])
             box.check();
     }
+
+    for (const image of images) {
+        //since the bucket is set to private, we cannot access the images directly via the link stored in supabase
+        
+        //we generate a link that is valid for 30 seconds
+        const { data, error } = await supabase.storage.from('Images').createSignedUrl(image.path, 30);
+
+        if (error || !data) {
+            throw new Error('Failed to create a signed URL for image: ' + image.path);
+        }
+
+        //fetch the images from the generated link
+        const response = await fetch(data.signedUrl);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch image from url: ' + data.signedUrl);
+        }
+
+        const imageBuffer = await response.arrayBuffer();
+        const imageBytes = new Uint8Array(imageBuffer);
+
+        let embeddedImage = null;
+        //handle the separate cases(images can be either jpeg or pdf)
+        if (isJpeg(imageBytes)) {
+            embeddedImage = await pdfDoc.embedJpg(imageBuffer);
+        } else if (isPng(imageBytes)) {
+            embeddedImage = await pdfDoc.embedPng(imageBuffer);
+        } else {
+            return null; //unhandled case
+        }
+
+        const page = pdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
+        page.drawImage(embeddedImage, {
+            x: 0,
+            y: 0,
+            width: embeddedImage.width,
+            height: embeddedImage.height
+        });
+    }
+
 
     form.flatten();
     const savedPdfBytes = await pdfDoc.save();
