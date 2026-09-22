@@ -444,7 +444,7 @@ export interface AutorizatieData{
     reluare_data_cap_e_nr8: string;
     reluare_ora_cap_e_nr8: string;
 
-     sef_lucrare_nume_cap_f: string;
+    sef_lucrare_nume_cap_f: string;
 
     lucrare_terminata_cap_f_check: boolean;
     unelte_materiale_stranse_cap_f_check: boolean;
@@ -727,6 +727,7 @@ export async function fillAutorizatiePdf(data: AutorizatieData, filePath: string
         }
     }
 
+    form.flatten()
     const savedBytes = await pdf.save({ useObjectStreams: false })
     return Buffer.from(savedBytes)
 
