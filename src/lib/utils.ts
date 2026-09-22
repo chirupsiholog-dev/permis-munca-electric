@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import type { Document } from "./namirial.js";
-import {PDFDocument} from 'pdf-lib';
+import {PDFDocument, PDFRef} from 'pdf-lib';
 //named import, not `import fs from 'fs/promises'` — the default export only
 //exists under Node's native ESM. Vercel bundles this to CJS, where the default
 //is undefined and every call throws "cannot read properties of undefined".
@@ -253,5 +253,481 @@ export async function fillInventarPdf(data: InventarData, images: ImageObject[],
     form.flatten();
     const savedPdfBytes = await pdfDoc.save();
     return Buffer.from(savedPdfBytes)
+
+}
+
+export interface AutorizatieData{
+    nr_autorizatie: string,
+    data_autorizatie: string,
+    sef_lucrare_desemnat: string,
+    instalatia_l1: string,
+    instalatia_l2: string,
+    partea_instalatie_l1: string,
+    partea_instalatie_l2: string,
+    continutul_lucrarii_l1: string,
+    continutul_lucrarii_l2: string,
+    durata_zile: string,
+    data_inceperii: string,
+    revenire_zilnica_check: boolean,
+    nr_zone_lucru: string,
+    nominalizare_zone_l1: string,
+    nominalizare_zone_l2: string,
+    de_la_cine: string,
+    foaie_manevra_check: boolean,
+    preluare_mesaj_check: boolean,
+    utilaje_speciale_check: boolean,
+    fisa_tehnologica_check: boolean,
+    instructiune_tehnica_check: boolean,
+    instalatii_afectate: string,
+    separare_electrica_catre: string,
+    aparate_comutatie_check: boolean, 
+    dezlegare_conductoare_check: boolean, 
+    dezlegare_cordoane_check: boolean, 
+    dezlegare_bare_aparataj_check: boolean, 
+    dezlegare_cabluri_check: boolean,
+    cabluri_detaliu: string,
+    separare_electrica_continuare: string,
+    legari_pamant_catre: string,
+    emitent_nume: string,
+    admitent_nume: string,
+    sef_lucrare_semnatar: string,
+    
+    manevra_nr1: string;
+    manevra_nr2: string;
+    manevra_nr3: string;
+
+    mesaj_nr1: string;
+    mesaj_nr2: string;
+    mesaj_nr3: string;
+    mesaj_nr4: string;
+    mesaj_nr5: string;
+
+    separat_vizibil_nominalizare: string;
+    separat_vizibil_nominalizare_l2: string;
+    separat_vizibil_nominalizare_l3: string;
+
+    este_separat_vizibil: string;
+
+    legat_pamant_scurtcircuit_unde: string;
+    legat_pamant_scurtcircuit_l2: string;
+    legat_pamant_scurtcircuit_l3: string;
+    legat_pamant_scurtcircuit_l4: string;
+
+    este_legat_pamant_scurtcircuit: string;
+
+    masuri_suplimentare_admitere: string;
+    masuri_suplimentare_admitere_l2: string;
+    masuri_suplimentare_admitere_l3: string;
+
+    data_ora_admiterii: string;
+
+    admitent_nume_admitere: string;
+
+    sef_lucrare_nume_admitere: string;
+
+    schema_diferita_check: boolean;
+
+    continut_mesaj_nr1: string;
+    continut_mesaj_nr2: string;
+    continut_mesaj_nr3: string;
+
+    sef_lucrare_nume_cap_c: string;
+
+    identificare_instalatie_cap_c_check: boolean;
+    fisa_tehnologica_cap_c_check: boolean;
+    instructiune_tehnica_cap_c_check: boolean;
+    instruire_formatie_cap_c_check: boolean;
+    preluare_zone_lucru_cap_c_check: boolean;
+    lucru_inaltime_cap_c_check: boolean;
+
+    zona_lucru_nr1: string;
+    legari_pamant_delimitare_nr1: string;
+    admitere_zona_data_ora_nr1: string;
+
+    zona_lucru_nr2: string;
+    legari_pamant_delimitare_nr2: string;
+    admitere_zona_data_ora_nr2: string;
+
+    zona_lucru_nr3: string;
+    legari_pamant_delimitare_nr3: string;
+    admitere_zona_data_ora_nr3: string;
+
+    zona_lucru_nr4: string;
+    legari_pamant_delimitare_nr4: string;
+    admitere_zona_data_ora_nr4: string;
+
+    zona_lucru_nr5: string;
+    legari_pamant_delimitare_nr5: string;
+    admitere_zona_data_ora_nr5: string;
+
+    zona_lucru_nr6: string;
+    legari_pamant_delimitare_nr6: string;
+    admitere_zona_data_ora_nr6: string;
+
+    masuri_suplimentare_cap_c_l1: string;
+    masuri_suplimentare_cap_c_l2: string;
+
+    executant_nume_nr1: string;
+    executant_nume_nr2: string;
+    executant_nume_nr3: string;
+    executant_nume_nr4: string;
+    executant_nume_nr5: string;
+    executant_nume_nr6: string;
+    executant_nume_nr7: string;
+    executant_nume_nr8: string;
+
+    modificare_nume_prenume_nr1: string;
+    modificare_scoatere_introducere_nr1: string;
+    modificare_ziua_nr1: string;
+    modificare_ora_nr1: string;
+
+    modificare_nume_prenume_nr2: string;
+    modificare_scoatere_introducere_nr2: string;
+    modificare_ziua_nr2: string;
+    modificare_ora_nr2: string;
+
+    modificare_nume_prenume_nr3: string;
+    modificare_scoatere_introducere_nr3: string;
+    modificare_ziua_nr3: string;
+    modificare_ora_nr3: string;
+
+    modificare_nume_prenume_nr4: string;
+    modificare_scoatere_introducere_nr4: string;
+    modificare_ziua_nr4: string;
+    modificare_ora_nr4: string;
+
+    zona_lucru_cap_e_nr1: string;
+    intrerupere_data_cap_e_nr1: string;
+    intrerupere_ora_cap_e_nr1: string;
+    reluare_data_cap_e_nr1: string;
+    reluare_ora_cap_e_nr1: string;
+
+    zona_lucru_cap_e_nr2: string;
+    intrerupere_data_cap_e_nr2: string;
+    intrerupere_ora_cap_e_nr2: string;
+    reluare_data_cap_e_nr2: string;
+    reluare_ora_cap_e_nr2: string;
+
+    zona_lucru_cap_e_nr3: string;
+    intrerupere_data_cap_e_nr3: string;
+    intrerupere_ora_cap_e_nr3: string;
+    reluare_data_cap_e_nr3: string;
+    reluare_ora_cap_e_nr3: string;
+
+    zona_lucru_cap_e_nr4: string;
+    intrerupere_data_cap_e_nr4: string;
+    intrerupere_ora_cap_e_nr4: string;
+    reluare_data_cap_e_nr4: string;
+    reluare_ora_cap_e_nr4: string;
+
+    zona_lucru_cap_e_nr5: string;
+    intrerupere_data_cap_e_nr5: string;
+    intrerupere_ora_cap_e_nr5: string;
+    reluare_data_cap_e_nr5: string;
+    reluare_ora_cap_e_nr5: string;
+
+    zona_lucru_cap_e_nr6: string;
+    intrerupere_data_cap_e_nr6: string;
+    intrerupere_ora_cap_e_nr6: string;
+    reluare_data_cap_e_nr6: string;
+    reluare_ora_cap_e_nr6: string;
+
+    zona_lucru_cap_e_nr7: string;
+    intrerupere_data_cap_e_nr7: string;
+    intrerupere_ora_cap_e_nr7: string;
+    reluare_data_cap_e_nr7: string;
+    reluare_ora_cap_e_nr7: string;
+
+    zona_lucru_cap_e_nr8: string;
+    intrerupere_data_cap_e_nr8: string;
+    intrerupere_ora_cap_e_nr8: string;
+    reluare_data_cap_e_nr8: string;
+    reluare_ora_cap_e_nr8: string;
+
+     sef_lucrare_nume_cap_f: string;
+
+    lucrare_terminata_cap_f_check: boolean;
+    unelte_materiale_stranse_cap_f_check: boolean;
+    mijloace_protectie_demontate_cap_f_check: boolean;
+    membri_evacuati_cap_f_check: boolean;
+    masuri_suplimentare_retrase_cap_f_check: boolean;
+    scurtcircuitoare_demontate_cap_f_check: boolean;
+    curatenie_zone_cap_f_check: boolean;
+    probe_functionale_executate_cap_f_check: boolean;
+
+    terminare_comunicare_data: string;
+    terminare_comunicare_ora: string;
+    terminare_comunicare_admitent: string;
+    terminare_comunicare_cale: string;
+
+    predat_data_cap_f: string;
+    predat_ora_cap_f: string;
+    primit_data_cap_f: string;
+    primit_ora_cap_f: string;
+
+    instalatie_pusa_tensiune_da_check: boolean;
+    instalatie_pusa_tensiune_nu_check: boolean;
+
+    punere_tensiune_comunicare_data: string;
+    punere_tensiune_comunicare_ora: string;
+    treapta_operativa_decizie: string;
+    punere_tensiune_cale: string;
+
+    admitent_confirmare_data_cap_f: string;
+    admitent_confirmare_ora_cap_f: string;
+
+}
+
+export async function fillAutorizatiePdf(data: AutorizatieData, filePath: string){
+
+    const pdfBytes = await readFile(filePath)
+    const pdf = await PDFDocument.load(pdfBytes)
+    // The template has an incremental catalog update (1 0 R -> 1 1 R).
+    // pdf-lib retains both generations, but its writer cannot produce a valid
+    // xref table for duplicate object numbers. Keep only the active catalog.
+    const rootRef = pdf.context.trailerInfo.Root;
+    if (rootRef instanceof PDFRef) {
+        for (const [ref] of pdf.context.enumerateIndirectObjects()) {
+            if (ref.objectNumber === rootRef.objectNumber && ref !== rootRef) {
+                pdf.context.delete(ref);
+            }
+        }
+    }
+    const form = pdf.getForm()
+
+    type CheckField =
+        | 'revenire_zilnica_check'
+        | 'foaie_manevra_check'
+        | 'preluare_mesaj_check'
+        | 'utilaje_speciale_check'
+        | 'fisa_tehnologica_check'
+        | 'instructiune_tehnica_check'
+        | 'aparate_comutatie_check'
+        | 'dezlegare_conductoare_check'
+        | 'dezlegare_cordoane_check'
+        | 'dezlegare_bare_aparataj_check'
+        | 'dezlegare_cabluri_check'
+        | 'schema_diferita_check'
+        | 'identificare_instalatie_cap_c_check'
+        | 'fisa_tehnologica_cap_c_check'
+        | 'instructiune_tehnica_cap_c_check'
+        | 'instruire_formatie_cap_c_check'
+        | 'preluare_zone_lucru_cap_c_check'
+        | 'lucru_inaltime_cap_c_check'
+        | 'lucrare_terminata_cap_f_check'
+        | 'unelte_materiale_stranse_cap_f_check'
+        | 'mijloace_protectie_demontate_cap_f_check'
+        | 'membri_evacuati_cap_f_check'
+        | 'masuri_suplimentare_retrase_cap_f_check'
+        | 'scurtcircuitoare_demontate_cap_f_check'
+        | 'curatenie_zone_cap_f_check'
+        | 'probe_functionale_executate_cap_f_check'
+        | 'instalatie_pusa_tensiune_da_check'
+        | 'instalatie_pusa_tensiune_nu_check';
+
+    const checkFields: CheckField[] = [
+        'revenire_zilnica_check',
+        'foaie_manevra_check',
+        'preluare_mesaj_check',
+        'utilaje_speciale_check',
+        'fisa_tehnologica_check',
+        'instructiune_tehnica_check',
+        'aparate_comutatie_check',
+        'dezlegare_conductoare_check',
+        'dezlegare_cordoane_check',
+        'dezlegare_bare_aparataj_check',
+        'dezlegare_cabluri_check',
+        'schema_diferita_check',
+        'identificare_instalatie_cap_c_check',
+        'fisa_tehnologica_cap_c_check',
+        'instructiune_tehnica_cap_c_check',
+        'instruire_formatie_cap_c_check',
+        'preluare_zone_lucru_cap_c_check',
+        'lucru_inaltime_cap_c_check',
+        'lucrare_terminata_cap_f_check',
+        'unelte_materiale_stranse_cap_f_check',
+        'mijloace_protectie_demontate_cap_f_check',
+        'membri_evacuati_cap_f_check',
+        'masuri_suplimentare_retrase_cap_f_check',
+        'scurtcircuitoare_demontate_cap_f_check',
+        'curatenie_zone_cap_f_check',
+        'probe_functionale_executate_cap_f_check',
+        'instalatie_pusa_tensiune_da_check',
+        'instalatie_pusa_tensiune_nu_check'
+    ];
+
+    type TextField = Exclude<keyof AutorizatieData, CheckField>;
+
+    const textFields: TextField[] = [
+        'nr_autorizatie',
+        'data_autorizatie',
+        'sef_lucrare_desemnat',
+        'instalatia_l1',
+        'instalatia_l2',
+        'partea_instalatie_l1',
+        'partea_instalatie_l2',
+        'continutul_lucrarii_l1',
+        'continutul_lucrarii_l2',
+        'durata_zile',
+        'data_inceperii',
+        'nr_zone_lucru',
+        'nominalizare_zone_l1',
+        'nominalizare_zone_l2',
+        'de_la_cine',
+        'instalatii_afectate',
+        'separare_electrica_catre',
+        'cabluri_detaliu',
+        'separare_electrica_continuare',
+        'legari_pamant_catre',
+        'emitent_nume',
+        'admitent_nume',
+        'sef_lucrare_semnatar',
+        'manevra_nr1',
+        'manevra_nr2',
+        'manevra_nr3',
+        'mesaj_nr1',
+        'mesaj_nr2',
+        'mesaj_nr3',
+        'mesaj_nr4',
+        'mesaj_nr5',
+        'separat_vizibil_nominalizare',
+        'separat_vizibil_nominalizare_l2',
+        'separat_vizibil_nominalizare_l3',
+        'este_separat_vizibil',
+        'legat_pamant_scurtcircuit_unde',
+        'legat_pamant_scurtcircuit_l2',
+        'legat_pamant_scurtcircuit_l3',
+        'legat_pamant_scurtcircuit_l4',
+        'este_legat_pamant_scurtcircuit',
+        'masuri_suplimentare_admitere',
+        'masuri_suplimentare_admitere_l2',
+        'masuri_suplimentare_admitere_l3',
+        'data_ora_admiterii',
+        'admitent_nume_admitere',
+        'sef_lucrare_nume_admitere',
+        'continut_mesaj_nr1',
+        'continut_mesaj_nr2',
+        'continut_mesaj_nr3',
+        'sef_lucrare_nume_cap_c',
+        'zona_lucru_nr1',
+        'legari_pamant_delimitare_nr1',
+        'admitere_zona_data_ora_nr1',
+        'zona_lucru_nr2',
+        'legari_pamant_delimitare_nr2',
+        'admitere_zona_data_ora_nr2',
+        'zona_lucru_nr3',
+        'legari_pamant_delimitare_nr3',
+        'admitere_zona_data_ora_nr3',
+        'zona_lucru_nr4',
+        'legari_pamant_delimitare_nr4',
+        'admitere_zona_data_ora_nr4',
+        'zona_lucru_nr5',
+        'legari_pamant_delimitare_nr5',
+        'admitere_zona_data_ora_nr5',
+        'zona_lucru_nr6',
+        'legari_pamant_delimitare_nr6',
+        'admitere_zona_data_ora_nr6',
+        'masuri_suplimentare_cap_c_l1',
+        'masuri_suplimentare_cap_c_l2',
+        'executant_nume_nr1',
+        'executant_nume_nr2',
+        'executant_nume_nr3',
+        'executant_nume_nr4',
+        'executant_nume_nr5',
+        'executant_nume_nr6',
+        'executant_nume_nr7',
+        'executant_nume_nr8',
+        'modificare_nume_prenume_nr1',
+        'modificare_scoatere_introducere_nr1',
+        'modificare_ziua_nr1',
+        'modificare_ora_nr1',
+        'modificare_nume_prenume_nr2',
+        'modificare_scoatere_introducere_nr2',
+        'modificare_ziua_nr2',
+        'modificare_ora_nr2',
+        'modificare_nume_prenume_nr3',
+        'modificare_scoatere_introducere_nr3',
+        'modificare_ziua_nr3',
+        'modificare_ora_nr3',
+        'modificare_nume_prenume_nr4',
+        'modificare_scoatere_introducere_nr4',
+        'modificare_ziua_nr4',
+        'modificare_ora_nr4',
+        'zona_lucru_cap_e_nr1',
+        'intrerupere_data_cap_e_nr1',
+        'intrerupere_ora_cap_e_nr1',
+        'reluare_data_cap_e_nr1',
+        'reluare_ora_cap_e_nr1',
+        'zona_lucru_cap_e_nr2',
+        'intrerupere_data_cap_e_nr2',
+        'intrerupere_ora_cap_e_nr2',
+        'reluare_data_cap_e_nr2',
+        'reluare_ora_cap_e_nr2',
+        'zona_lucru_cap_e_nr3',
+        'intrerupere_data_cap_e_nr3',
+        'intrerupere_ora_cap_e_nr3',
+        'reluare_data_cap_e_nr3',
+        'reluare_ora_cap_e_nr3',
+        'zona_lucru_cap_e_nr4',
+        'intrerupere_data_cap_e_nr4',
+        'intrerupere_ora_cap_e_nr4',
+        'reluare_data_cap_e_nr4',
+        'reluare_ora_cap_e_nr4',
+        'zona_lucru_cap_e_nr5',
+        'intrerupere_data_cap_e_nr5',
+        'intrerupere_ora_cap_e_nr5',
+        'reluare_data_cap_e_nr5',
+        'reluare_ora_cap_e_nr5',
+        'zona_lucru_cap_e_nr6',
+        'intrerupere_data_cap_e_nr6',
+        'intrerupere_ora_cap_e_nr6',
+        'reluare_data_cap_e_nr6',
+        'reluare_ora_cap_e_nr6',
+        'zona_lucru_cap_e_nr7',
+        'intrerupere_data_cap_e_nr7',
+        'intrerupere_ora_cap_e_nr7',
+        'reluare_data_cap_e_nr7',
+        'reluare_ora_cap_e_nr7',
+        'zona_lucru_cap_e_nr8',
+        'intrerupere_data_cap_e_nr8',
+        'intrerupere_ora_cap_e_nr8',
+        'reluare_data_cap_e_nr8',
+        'reluare_ora_cap_e_nr8',
+        'sef_lucrare_nume_cap_f',
+        'terminare_comunicare_data',
+        'terminare_comunicare_ora',
+        'terminare_comunicare_admitent',
+        'terminare_comunicare_cale',
+        'predat_data_cap_f',
+        'predat_ora_cap_f',
+        'primit_data_cap_f',
+        'primit_ora_cap_f',
+        'punere_tensiune_comunicare_data',
+        'punere_tensiune_comunicare_ora',
+        'treapta_operativa_decizie',
+        'punere_tensiune_cale',
+        'admitent_confirmare_data_cap_f',
+        'admitent_confirmare_ora_cap_f'
+    ];
+
+    const allFields: (keyof AutorizatieData)[] = [
+        ...textFields,
+        ...checkFields
+    ];
+
+    for(const textField of textFields){
+        const field = form.getTextField(textField)
+        field.setText(data[textField])
+    }
+
+    for(const checkField of checkFields){
+        if(data[checkField]){
+            const check = form.getCheckBox(checkField)
+            check.check()
+        }
+    }
+
+    const savedBytes = await pdf.save({ useObjectStreams: false })
+    return Buffer.from(savedBytes)
 
 }

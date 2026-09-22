@@ -12,3 +12,4 @@ dist/
 
 # Design handoff bundle, if it is ever copied in
 permis-munca-login-design/
+/tests
