@@ -279,7 +279,7 @@ export const downloadSignedAutorizatie = async(req: Request, res: Response) => {
         const {data: storagePathData, error: storagePathError} = await supabase.from('autorizatii').select('signed_storage_path').eq('id', docId).eq('user_id', userId).maybeSingle()
         if(storagePathError)
             throw new Error('Internal Server Error')
-        if(!storagePathData)
+        if(!storagePathData || !storagePathData.signed_storage_path)
             return res.status(404).json({error: 'Link-ul de descarcare nu e valabil'})
         
         const {data, error} = await supabase.storage.from('Documents').download(storagePathData.signed_storage_path)
