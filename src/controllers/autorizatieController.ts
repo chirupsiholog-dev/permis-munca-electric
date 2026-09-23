@@ -3,8 +3,10 @@ import { fillAutorizatiePdf, type AutorizatieData } from "../lib/utils.js";
 import { supabase } from "../lib/supabaseClient.js";
 import path from "node:path";
 import fs from 'fs'
-import type { Semnatar } from "../lib/namirial.js";
+import { createEnvelope, getViewerLinks, uploadFile, type Semnatar } from "../lib/namirial.js";
 import crypto from 'crypto';
+import { getAutorizatieSignatures } from '../lib/autorizatieSignatures.js';
+import { error } from "node:console";
 
 
 interface EmailExecutanti{
@@ -34,6 +36,8 @@ interface AutorizatiePayload{
     pdfData: AutorizatieData
 }
 
+const appUrl = process.env.APP_URL_NGROK;
+const webhookSecret = process.env.WEBHOOK_SECRET
 
 export const postAutorizatie = async(req: Request, res: Response)=>{
 
@@ -83,6 +87,7 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
 
         //create semnatari array
         const semnatari: Semnatar[] = []
+        const signaturePositions = getAutorizatieSignatures(pdfData);
 
         function splitName(fullName: string): {nume: string, prenume: string}{
 
@@ -98,7 +103,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             email: userEmail,
             nume: numeEmitent,
             prenume: prenumeEmitent,
-            signatures: [] //empty for now
+            signatures: signaturePositions.emitent,
+            signingTask: { orderIndex: 1, batchGroup: 'issuerSignatures', signingGroup: 'issuer' }
         });
 
         const requiredNameFields: (keyof AutorizatieData)[] = [
@@ -117,7 +123,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             nume: numeSeparatSef['nume'],
             prenume: numeSeparatSef['prenume'],
             email: emailSefLucrare,
-            signatures: [] //empty for now
+            signatures: signaturePositions.sefLucrare,
+            signingTask: { orderIndex: 2, batchGroup: 'supervisorSignatures', signingGroup: 'supervisor' }
         })
 
         //3. Admitent
@@ -126,7 +133,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             nume: numeSeparatAdmitent['nume'],
             prenume: numeSeparatAdmitent['prenume'],
             email: emailAdmitent,
-            signatures: [] //empty for now
+            signatures: signaturePositions.admitent,
+            signingTask: { orderIndex: 3, batchGroup: 'admitentSignatures', signingGroup: 'admitent' }
         })
 
         //4. Executanti
@@ -154,7 +162,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             semnatari.push({
                 ...splitName(fullName),
                 email: email.trim(),
-                signatures: [],
+                signatures: signaturePositions.executanti[nr],
+                signingTask: { orderIndex: 4, batchGroup: 'inspectorSignatures', signingGroup: 'inspector' }
             });
         }
 
@@ -181,7 +190,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             semnatari.push({
                 ...splitName(fullName),
                 email: email.trim(),
-                signatures: [],
+                signatures: signaturePositions.personalModificat[nr],
+                signingTask: { orderIndex: 4, batchGroup: 'inspectorSignatures', signingGroup: 'inspector' }
             });
         }
 
@@ -201,8 +211,20 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
         //res.setHeader('Content-Type', 'application/pdf')
         // res.send(pdfBytes)
 
-        //upload to storage
         const uniqueFileName = `autorizatie_lucru_${pdfData.emitent_nume}_${pdfData.sef_lucrare_nume_admitere}_${pdfData.admitent_nume}_${crypto.randomUUID()}.pdf`
+        //upload to namirial
+        const pdfBase64 = pdfBytes.toString('base64')
+        const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
+        // No callbacks until the authorization-specific webhook is implemented.
+        // createEnvelope omits CallbackConfiguration for an empty URL.
+        const callbackUrl = `${appUrl}/api/namirial/webhook/autorizatii/${webhookSecret}`;
+        const envelopeId = await createEnvelope(pdfBase64, semnatari, accessCode, callbackUrl, uniqueFileName)
+        const viewerLinks = await getViewerLinks(envelopeId)
+        if(!viewerLinks || !viewerLinks[0])
+                throw new Error ('Failed to obtain emitent signing link');       
+        const emitentSigningLink = viewerLinks[0].link
+
+        //upload to storage
         const storagePath = `initialAutorizatii/${uniqueFileName}`
         const {error: uploadError} = await supabase.storage.from('Documents').upload(storagePath, pdfBytes, {contentType: 'application/pdf'})
         if(uploadError)
@@ -213,7 +235,11 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             'user_id': userId,
             'storage_path': storagePath,
             'email_sef_lucrare': emailSefLucrare,
-            'email_admitent': emailAdmitent
+            'email_admitent': emailAdmitent,
+            'emitent_signing_link': emitentSigningLink,
+            'cod_acces': accessCode,
+            'namirial_envelope_id': envelopeId,
+            'workflow_status': 'pending_emitent',
         }).select().maybeSingle()
 
         if(metadataError)
@@ -221,14 +247,58 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
         if(!uploadMetadata)
             return res.status(400).json({error: 'Upload failed'})
 
-        //create signedUrl
-        const {data} = await supabase.storage.from('Documents').createSignedUrl(storagePath, 60 * 60)
-        if(!data || !data.signedUrl)
-            return res.status(400).json({error: 'Failed to upload to storage'})
+        return res.status(201).json({
+                'success': true,
+                'message': 'Successfully inserted data',
+                'data': uploadMetadata
+            });
 
-        return res.status(200).json({success: true, message: 'Document creat si incarcat cu success', data: {metadata: uploadMetadata, signedUrl: data.signedUrl}})
+        // //create signedUrl
+        // const {data} = await supabase.storage.from('Documents').createSignedUrl(storagePath, 60 * 60)
+        // if(!data || !data.signedUrl)
+        //     return res.status(400).json({error: 'Failed to upload to storage'})
+
+        // return res.status(200).json({success: true, message: 'Document creat si incarcat cu success', data: {metadata: uploadMetadata, signedUrl: data.signedUrl}})
 
     }catch(error: any){
         return res.status(500).json({error: error.message})
     }
+}
+
+export const downloadSignedAutorizatie = async(req: Request, res: Response) => {
+
+    try{
+        const userId = req.user
+
+        const docId = req.params.id as string | undefined
+
+        if(!docId){
+            return res.status(400).json({error: 'Missing document ID'})
+        }
+
+        const {data: storagePathData, error: storagePathError} = await supabase.from('autorizatii').select('signed_storage_path').eq('id', docId).eq('user_id', userId).maybeSingle()
+        if(storagePathError)
+            throw new Error('Internal Server Error')
+        if(!storagePathData)
+            return res.status(404).json({error: 'Link-ul de descarcare nu e valabil'})
+        
+        const {data, error} = await supabase.storage.from('Documents').download(storagePathData.signed_storage_path)
+        if(error)
+            throw new Error('Internal Server Error')
+        if(!data)
+            throw new Error('Descarcarea a esuat')
+
+        const buffer = Buffer.from(await data.arrayBuffer())
+
+        const fileName = path.basename(storagePathData.signed_storage_path)
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+        res.setHeader('Content-Type', 'application/pdf')
+
+        return res.send(buffer)
+
+    }catch(error: any){
+        return res.status(500).json({error: error.message})
+    }
+
 }

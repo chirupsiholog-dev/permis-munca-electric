@@ -1,8 +1,23 @@
+export interface SignaturePosition {
+    page: number;
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+}
+
+export interface SigningTask {
+    orderIndex: number;
+    batchGroup: string;
+    signingGroup: string;
+}
+
 export interface Semnatar{
     email: string,
     nume: string,
     prenume: string,
-    signatures: {page: number, x: number, y: number}[]
+    signatures: SignaturePosition[],
+    signingTask: SigningTask
 }
 
 export interface Document{
@@ -85,12 +100,36 @@ export async function uploadFile(doc: string, fileName: string){
 
 export async function createEnvelope(doc: string, semnatari: Semnatar[], accessCode: string, callbackUrl: string, fileName: string){
 
+    let callbackConfiguration: { CallbackUrl: string; StatusUpdateCallbackUrl: string } | undefined;
+    const callbackBase = callbackUrl.trim();
+    if (callbackBase) {
+        let url: URL;
+        try {
+            url = new URL(callbackBase);
+        } catch {
+            throw new Error('Callback URL must be an absolute HTTP or HTTPS URL');
+        }
+        if (!['http:', 'https:'].includes(url.protocol) || url.hash || url.username || url.password) {
+            throw new Error('Callback URL must use HTTP or HTTPS without credentials or a fragment');
+        }
+        url.searchParams.delete('envelope');
+        url.searchParams.delete('action');
+        const separator = url.search ? '&' : '?';
+        // Append Namirial placeholders literally; URLSearchParams encodes #.
+        const envelopeCallback = `${url.toString()}${separator}envelope=##EnvelopeId##`;
+        callbackConfiguration = {
+            CallbackUrl: envelopeCallback,
+            StatusUpdateCallbackUrl: `${envelopeCallback}&action=##Action##`,
+        };
+    }
+
     try{
         const fileId = await uploadFile(doc, fileName);
 
         const actions = semnatari.map((s, signeeIdx) => ({
             "Action": {
                 "Sign":{
+                    "SigningGroup": s.signingTask.signingGroup,
                     "RecipientConfiguration":{
                         "ContactInformation":{
                             "Email": s.email,
@@ -112,10 +151,13 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                     "Elements":{
                         "Signatures": s.signatures.map((sig, signatureIdx) => (
                             {
-                                "GuidingOrder": signatureIdx + 1,
                                 "ElementId": `sig_signee${signeeIdx}_field${signatureIdx}`,
                                 "Required": true,
                                 "DocumentNumber": 1,
+                                "TaskConfiguration": {
+                                    "OrderDefinition": { "OrderIndex": s.signingTask.orderIndex },
+                                    "BatchGroup": s.signingTask.batchGroup
+                                },
                                 "AllowedSignatureTypes":{DrawToSign: {
                                     "StampImprintConfiguration": {
                                         "DisplayName": false,
@@ -126,11 +168,17 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                                 }},
                                 "FieldDefinition":{
                                     Position: { PageNumber: sig.page, X: sig.x, Y: sig.y },
-                                    Size: { Width: 100, Height: 20 },
+                                    Size: { Width: sig.width ?? 100, Height: sig.height ?? 20 },
                                 }
                             }
                         ))
+                    },
+
+                    "BatchConfiguration": {
+                        "Mode": "Basic",
+                        "RequireScrollingOverAllSignaturesBeforeSigning": false
                     }
+
                 }
             }
         }))
@@ -149,11 +197,8 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
             ReminderConfiguration: {
             "Enabled": false,
             },
-
-            "CallbackConfiguration": {
-            StatusUpdateCallbackUrl: `${callbackUrl}?envelope=##EnvelopeId##&action=##Action##`,
-            CallbackUrl: `${callbackUrl}?envelope=##EnvelopeId##`,
-            }
+            
+            ...(callbackConfiguration ? { CallbackConfiguration: callbackConfiguration } : {}),
         }
 
         const data = await namirialFetch('envelope/send', 'POST', envelopeBody);
