@@ -6,14 +6,14 @@ import UserBadge from './UserBadge.jsx'
 import { homePath } from '../../lib/roles.js'
 
 const ADMIN_NAV = [
-  { to: '/', label: 'Acasă', end: true },
-  { to: '/permise', label: 'Permise' },
-  { to: '/autorizatii', label: 'Autorizații' },
-  { to: '/arhiva', label: 'Arhivă' },
-  { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
-  {to: '/cont-nou', label: 'Cont nou'},
+  {to: '/', label: 'Acasă', end: true },
+  {to: '/permise', label: 'Permise' },
+  {to: '/arhiva', label: 'Arhivă P.' },
+  {to: '/autorizatii', label: 'Autorizații' },
+  {to: '/autorizatie', label: 'Arhivă A.'},
+  {to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
   {to: '/inventare', label: 'Invertoare'},
-  {to: '/autorizatie', label: 'Autorizatii'}
+  {to: '/cont-nou', label: 'Cont nou'},
 ]
 
 const USER_NAV = [

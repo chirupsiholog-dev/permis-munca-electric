@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { Download } from 'lucide-react'
+import Button from '../components/ui/Button.jsx'
 
 import PageTransition from '../components/layout/PageTransition.jsx'
 import PageHeading from '../components/ui/PageHeading.jsx'
@@ -23,6 +24,7 @@ function mapRecord(r) {
     admitentEmail: r.email_admitent,
     sefLucrareEmail: r.email_sef_lucrare,
     codAcces: r.cod_acces,
+    emitentSigningLink: r.emitent_signing_link
   }
 }
 
@@ -49,18 +51,18 @@ function formatDate(iso) {
 }
 
 function StatusPill({ status }) {
-  // TODO: swap for nicer Romanian labels per status once finalized
-  // (e.g. pending_emitent -> "Așteaptă semnătura ta").
+
   const label = status?.replace(/_/g, ' ') ?? '—'
   return (
-    <span className="inline-flex items-center gap-2 text-body-sm font-medium uppercase tracking-wide text-ink-800">
+    <span className="inline-flex items-center gap-2 whitespace-nowrap text-body-sm font-medium uppercase tracking-wide text-ink-800">
       <span className="h-2 w-2 shrink-0 bg-brand" />
       {label}
     </span>
   )
 }
 
-const GRID_COLS = 'grid-cols-[110px_150px_1fr_1fr_1fr_120px_56px]'
+const GRID_COLS =
+  'grid-cols-[100px_190px_minmax(120px,1fr)_minmax(220px,1.4fr)_minmax(220px,1.4fr)_110px_120px_90px]'
 
 export default function AutorizatiePage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -72,22 +74,27 @@ export default function AutorizatiePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
+  const load = () => {
+  const jwt = localStorage.getItem('token')
+  return fetch('/api/autorizatie/all', {
+    headers: { Authorization: `Bearer ${jwt}` },
+  })
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      return r.json()
+    })
+    .then((d) => setRows((d.data ?? []).map(mapRecord)))
+  }
+
+
   useEffect(() => {
-    const jwt = localStorage.getItem('token')
     setLoading(true)
     setError(false)
+    load().catch(() => setError(true)).finally(() => setLoading(false))
 
-    fetch('/api/autorizatie/all', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${jwt}` },
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        const list = d.data ?? []
-        setRows(list.map(mapRecord))
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+    const onFocus = () => load().catch(() => {})
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   const filteredRows = useMemo(() => {
@@ -141,10 +148,10 @@ export default function AutorizatiePage() {
       {/* Widened from max-w-[1080px] to max-w-[1400px] so the extra Admitent
           column has room to breathe. Bump this further, or drop max-w for a
           fluid layout, if it still feels tight. */}
-      <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-[26px] px-7 pb-16 pt-11">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-[26px] px-7 pb-16 pt-11">
         <PageHeading
-          title="Arhivă permise"
-          subtitle="Toate permisele emise de tine, cu starea documentului și a semnăturilor."
+          title="Arhivă autorizații"
+          subtitle="Toate autorizațiile emise de tine, cu starea documentului și a semnăturilor."
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -175,16 +182,18 @@ export default function AutorizatiePage() {
           />
         </div>
 
-        <div className="border border-line bg-white">
-          <div className={`grid ${GRID_COLS} gap-4 border-b border-line bg-surface-alt px-5 py-3`}>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Data</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Stare permis</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Emitent</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Șef de lucrare</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Admitent</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Cod acces</span>
-            <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500" />
-          </div>
+        <div className="overflow-x-auto border border-line bg-white">
+          <div className="min-w-[1340px]">
+            <div className={`grid ${GRID_COLS} gap-4 border-b border-line bg-surface-alt px-5 py-3`}>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Data</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Stare permis</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Emitent</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Șef de lucrare</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Admitent</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Cod acces</span>
+              <span className="text-body-sm font-semibold uppercase tracking-wide text-ink-500">Semnează</span>
+              <span className="text-center text-body-sm font-semibold uppercase tracking-wide text-ink-500">Descarcă</span>
+            </div>
 
           <div className="divide-y divide-line">
             {loading &&
@@ -197,7 +206,7 @@ export default function AutorizatiePage() {
                   <div className="h-4 w-32 animate-pulse bg-surface-alt" />
                   <div className="h-4 w-16 animate-pulse bg-surface-alt" />
                   <div className="h-4 w-6 animate-pulse bg-surface-alt" />
-                </div>
+                  <div className="h-4 w-6 animate-pulse justify-self-center bg-surface-alt" />                </div>
               ))}
 
             {!loading && error && (
@@ -218,28 +227,34 @@ export default function AutorizatiePage() {
                 <div key={row.id} className={`grid ${GRID_COLS} items-center gap-4 px-5 py-4`}>
                   <span className="text-body-sm text-ink-800">{formatDate(row.createdAt)}</span>
                   <StatusPill status={row.status} />
-                  {/* TODO: confirm `profile.numeAfisat` is the right field —
-                      mirrors `profile.prenume` used in HomePage.jsx. This
-                      also assumes every row on this page belongs to the
-                      logged-in emitent; if this page can ever show other
-                      people's documents, this needs to come from the row
-                      itself instead (e.g. row.emitentNume). */}
                   <span className="truncate text-body-sm text-ink-800">{profile?.numeAfisat ?? '—'}</span>
-                  <span className="truncate text-body-sm text-ink-800">{row.sefLucrareEmail || '—'}</span>
-                  <span className="truncate text-body-sm text-ink-800">{row.admitentEmail || '—'}</span>
+                  <span className="break-all text-body-sm text-ink-800" title={row.sefLucrareEmail}>
+                    {row.sefLucrareEmail || '—'}
+                  </span>
+                  <span className="break-all text-body-sm text-ink-800" title={row.admitentEmail}>
+                    {row.admitentEmail || '—'}
+                  </span>
                   <span className="text-body-sm text-ink-800">{row.codAcces}</span>
+                  <Button type="button" size="sm" fullWidth disabled={row.status !== 'pending_emitent' || !row.emitentSigningLink} onClick = {() => { window.open(row.emitentSigningLink, '_blank')}}>
+                      {row.status === 'pending_emitent'
+                      ? 'Semnează'
+                      : row.status === 'semnat'
+                        ? 'Ai semnat'
+                        : 'În așteptare'}
+                  </Button>
                   {row.status === 'semnat' && (
                   <button
                     type="button"
                     onClick={() => handleDownload(row)}
                     title="Descarcă"
-                    className="flex h-8 w-8 items-center justify-center border border-line text-brand transition-colors hover:bg-surface-alt"
+                    className="flex h-8 w-8 items-center justify-center justify-self-center border border-line text-brand transition-colors hover:bg-surface-alt"
                   >
                     <Download size={15} />
                   </button>
                   )}
                 </div>
               ))}
+          </div>
           </div>
         </div>
       </main>
