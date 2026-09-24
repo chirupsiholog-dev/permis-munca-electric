@@ -314,43 +314,43 @@ export const getAllAutorizatii = async(req: Request, res: Response) => {
 }
 
 export const createPdfWithImages = async(req: Request, res: Response) => {
-    try {
-        const file = req.file as Express.Multer.File;
+    
+    const file = req.file as Express.Multer.File;
 
-        if (!file) {
-            return res.status(400).json({
-                'error': 'No images were uploaded in the form'
-            });
-        }
-
-        const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
-
-        //access the pdf
-        const pdfBytes = await readFile(pdfPath);
-        const pdf = await PDFDocument.load(pdfBytes)
-
-        //add image to the beginning of page 2
-        const imageBuffer = file.buffer
-
-        let embeddedImage = null;
-        //handle the separate cases(images can be either jpeg or pdf)
-        if (isJpeg(imageBuffer)) {
-            embeddedImage = await pdf.embedJpg(imageBuffer);
-        } else if (isPng(imageBuffer)) {
-            embeddedImage = await pdf.embedPng(imageBuffer);
-        } else {
-            return res.status(400).json({
-                'error': 'Unsupported image format'
-            });
-        }
-
-        const page = pdf.getPage(1);
-        page.drawImage(embeddedImage, {
-            x: 55,
-            y: 360,
-            width: page.getWidth() / 1.25,
-            height: page.getHeight() / 2.3,
+    if (!file) {
+        return res.status(400).json({
+            'error': 'No images were uploaded in the form'
         });
+    }
+
+    const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+
+    //access the pdf
+    const pdfBytes = await readFile(pdfPath);
+    const pdf = await PDFDocument.load(pdfBytes)
+
+    //add image to the beginning of page 2
+    const imageBuffer = file.buffer
+
+    let embeddedImage = null;
+    //handle the separate cases(images can be either jpeg or pdf)
+    if (isJpeg(imageBuffer)) {
+        embeddedImage = await pdf.embedJpg(imageBuffer);
+    } else if (isPng(imageBuffer)) {
+        embeddedImage = await pdf.embedPng(imageBuffer);
+    } else {
+        return res.status(400).json({
+            'error': 'Unsupported image format'
+        });
+    }
+
+    const page = pdf.getPage(1);
+    page.drawImage(embeddedImage, {
+        x: 55,
+        y: 360,
+        width: page.getWidth() / 1.25,
+        height: page.getHeight() / 2.3,
+    });
 
     const savedPdfBytes = await pdf.save();
     //for saving the actual pdf
