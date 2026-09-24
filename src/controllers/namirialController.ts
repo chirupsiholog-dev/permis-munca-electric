@@ -309,7 +309,8 @@ interface EnvelopeStatus{
   namirial_envelope_id: string,
   emitent_signing_link: string,
   workflow_status: string,
-  cod_acces: string
+  cod_acces: string,
+  executanti_signing_links?: string[] | null
 
 }
 
@@ -442,7 +443,8 @@ async function admitentCallback(envelopeId: string, envelopeStatus: EnvelopeStat
     //second callback case - go to admitent if:
     //worflow_status is pending_sef_lucrare - there were no tries to send an email to sef lucrare yet
     //worfklow_status is processing_final_zip - there was a failed try to send the email to sef lucrare, and the webhook is retrying
-    if(envelopeStatus.workflow_status === 'pending_sef_lucrare'){
+     if(envelopeStatus.workflow_status === 'pending_sef_lucrare' ||
+       envelopeStatus.workflow_status === 'processing_admitent_invite'){
 
       if(!envelopeStatus.email_admitent){
           throw new Error(`Missing email_admitent for envelope ${envelopeId}`);
@@ -585,7 +587,7 @@ async function sendExecutantEmail(emailExecutant: string, codAcces: string, view
             </div>
 
             <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
-              Pentru a finaliza procesul, va rugam sa semnati documentele in calitate de <strong>admitent</strong>, accesand link-ul de mai jos.
+              Pentru a finaliza procesul, va rugam sa semnati documentele in calitate de <strong>executant</strong>, accesand link-ul de mai jos.
             </p>
 
             <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:16px 18px;margin-bottom:28px">
@@ -625,7 +627,8 @@ async function executantiModificatiCallback(envelopeId: string, envelopeStatus: 
      envelopeStatus.workflow_status === 'processing_executanti_invite' ||
      envelopeStatus.workflow_status === 'pending_executanti'){
 
-    if(envelopeStatus.workflow_status === 'pending_admitent'){
+    if(envelopeStatus.workflow_status === 'pending_admitent' ||
+       envelopeStatus.workflow_status === 'processing_executanti_invite'){
       const knownEarlierSigners = new Set([
         envelopeStatus.email_sef_lucrare.trim().toLowerCase(),
         envelopeStatus.email_admitent.trim().toLowerCase(),
@@ -650,17 +653,30 @@ async function executantiModificatiCallback(envelopeId: string, envelopeStatus: 
         return;
       }
 
-      await Promise.all(viewerLinks.map(v => sendExecutantEmail(v.email, envelopeStatus.cod_acces, v.link)));
+    const sentLinks = new Set(envelopeStatus.executanti_signing_links ?? []);
+    const linksToSend = viewerLinks.filter(viewerLink => !sentLinks.has(viewerLink.link));
+    const sendResults = await Promise.allSettled(
+      linksToSend.map(viewerLink => sendExecutantEmail(viewerLink.email, envelopeStatus.cod_acces, viewerLink.link)),
+    );
+    const successfulLinks = linksToSend.filter((_, index) => sendResults[index]?.status === 'fulfilled').map(viewerLink => viewerLink.link);
+    const failedEmails = linksToSend.filter((_, index) => sendResults[index]?.status === 'rejected').map(viewerLink => viewerLink.email);
+    const allSentLinks = [...sentLinks, ...successfulLinks];
 
-      //update after emails were sent
-      const {error: updateStatusError} = await supabase.from('autorizatii').
-      update({'workflow_status': 'pending_executanti', 'executanti_signing_links': viewerLinks.map(v => v.link)}).
-      eq('namirial_envelope_id', envelopeId).eq('workflow_status', 'processing_executanti_invite')
+    const {error: updateStatusError} = await supabase.from('autorizatii')
+      .update({
+        'workflow_status': failedEmails.length === 0 ? 'pending_executanti' : 'processing_executanti_invite',
+        'executanti_signing_links': allSentLinks,
+      })
+      .eq('namirial_envelope_id', envelopeId)
+      .eq('workflow_status', 'processing_executanti_invite');
 
-      if (updateStatusError) {
-        throw new Error(`DB Error: ${updateStatusError.message}`);
-      }
-    
+    if (updateStatusError) {
+      throw new Error(`DB Error: ${updateStatusError.message}`);
+    }
+
+    if (failedEmails.length > 0) {
+      throw new Error(`Failed to send executant invitations: ${failedEmails.join(', ')}`);
+    }
     }
 
     const {activities} = await getEnvelopeStatus(envelopeId)
@@ -670,12 +686,19 @@ async function executantiModificatiCallback(envelopeId: string, envelopeStatus: 
       return;
 
     //if all executanti signed
-    const {error: updateStatusError} = await supabase.from('autorizatii').
-    update({'workflow_status': 'semnat'}).
-    eq('namirial_envelope_id', envelopeId).eq('workflow_status', 'pending_executanti')
+    const {data: claimData, error: claimError} = await supabase.from('autorizatii')
+      .update({'workflow_status': 'processing_signed_download'})
+      .eq('namirial_envelope_id', envelopeId)
+      .in('workflow_status', ['pending_executanti', 'processing_signed_download'])
+      .select('*').maybeSingle();
 
-    if (updateStatusError) {
-      throw new Error(`DB Error: ${updateStatusError.message}`);
+    if (claimError) {
+      throw new Error(`Claim Error: ${claimError.message}`);
+    }
+
+    if (!claimData) {
+      console.log(`[syncEnvelopeActivitiesAutorizatii] Envelope ${envelopeId} already signed or being processed.`);
+      return;
     }
 
     //get fully signed doc
@@ -706,8 +729,8 @@ async function executantiModificatiCallback(envelopeId: string, envelopeStatus: 
 
     //upload storagePath to autorizatii table
     const {error: updateSignedStoragePathError} = await supabase.from('autorizatii').
-    update({'signed_storage_path': storagePath}).
-    eq('namirial_envelope_id', envelopeId)
+    update({'signed_storage_path': storagePath, 'workflow_status': 'semnat'}).
+    eq('namirial_envelope_id', envelopeId).eq('workflow_status', 'processing_signed_download')
 
     if (updateSignedStoragePathError) {
       throw new Error(`DB Error: ${updateSignedStoragePathError.message}`);

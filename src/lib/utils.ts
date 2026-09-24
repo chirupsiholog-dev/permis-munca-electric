@@ -165,11 +165,11 @@ function removeDiacritics(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 } 
 
-function isJpeg(bytes: Uint8Array): boolean {
+export function isJpeg(bytes: Uint8Array): boolean {
     return bytes[0] === 0xFF && bytes[1] === 0xD8;
 }
 
-function isPng(bytes: Uint8Array): boolean {
+export function isPng(bytes: Uint8Array): boolean {
     return (
     bytes[0] === 0x89 &&
     bytes[1] === 0x50 && // 'P'
@@ -478,9 +478,16 @@ export interface AutorizatieData{
 
 }
 
-export async function fillAutorizatiePdf(data: AutorizatieData, pdfBase64: string){
+export async function fillAutorizatiePdf(data: AutorizatieData, pdfPhotoStoragePath: string){
 
-    const pdfBytes = Buffer.from(pdfBase64, 'base64')
+    //download pdf with photo bytes from storage
+    const {data: pdfBlob, error} = await supabase.storage.from('Documents').download(pdfPhotoStoragePath)
+    if(error)
+        throw new Error('Internal Server Error')
+    if(!pdfBlob)
+        throw new Error('Internal Server Error')
+
+    const pdfBytes = Buffer.from(await pdfBlob.arrayBuffer())
     const pdf = await PDFDocument.load(pdfBytes)
     // The template has an incremental catalog update (1 0 R -> 1 1 R).
     // pdf-lib retains both generations, but its writer cannot produce a valid
@@ -730,5 +737,4 @@ export async function fillAutorizatiePdf(data: AutorizatieData, pdfBase64: strin
     form.flatten()
     const savedBytes = await pdf.save({ useObjectStreams: false })
     return Buffer.from(savedBytes)
-
 }
