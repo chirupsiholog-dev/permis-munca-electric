@@ -206,7 +206,8 @@ export default function AutorizatiePage() {
                   <div className="h-4 w-32 animate-pulse bg-surface-alt" />
                   <div className="h-4 w-16 animate-pulse bg-surface-alt" />
                   <div className="h-4 w-6 animate-pulse bg-surface-alt" />
-                  <div className="h-4 w-6 animate-pulse justify-self-center bg-surface-alt" />                </div>
+                  <div className="h-4 w-6 animate-pulse justify-self-center bg-surface-alt" /> 
+                </div>
               ))}
 
             {!loading && error && (
@@ -247,7 +248,8 @@ export default function AutorizatiePage() {
                     type="button"
                     onClick={() => handleDownload(row)}
                     title="Descarcă"
-                    className="flex h-8 w-8 items-center justify-center justify-self-center border border-line text-brand transition-colors hover:bg-surface-alt"
+  
+                    className="flex h-8 w-8 items-center justify-center justify-self-center border border-line text-brand transition-colors hover:bg-surface-alt cursor-pointer"
                   >
                     <Download size={15} />
                   </button>
