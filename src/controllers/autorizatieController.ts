@@ -352,15 +352,29 @@ export const createPdfWithImages = async(req: Request, res: Response) => {
             height: page.getHeight() / 2.3,
         });
 
-        const savedPdfBytes = await pdf.save();
+    const savedPdfBytes = await pdf.save();
+    //for saving the actual pdf
+//     await fs.writeFile('Autorizatie_de_lucru_form_cu_imagini.pdf', savedPdfBytes, (err) => {
+//         if (err) throw err;
+//         console.log('The file has been saved!');
+//     });
 
-        return res.status(200).json({
-            'data': Buffer.from(savedPdfBytes).toString('base64'),
-            'message': 'Returned the pdf bytes with embedded images'
+    const pdfName =  `Autorizatie_de_lucru_form_cu_imagini_${crypto.randomUUID()}.pdf`;
+
+    const { error } = await supabase.storage.from('Documents').upload('pdfWithImage/' + pdfName, savedPdfBytes, { 
+        contentType: 'application/pdf' 
+    });
+
+    if (error) {
+        return res.status(500).json({
+            'error': 'Error while uploading pdf with image to supabase'
         });
-    } catch (error: any) {
-        return res.status(500).json({error: error.message});
     }
+
+    return res.status(200).json({
+        'data': 'pdfWithImage/' + pdfName,
+        'message': 'Returned the storage path for pdf with image'
+    });
 }
 export const downloadSignedAutorizatie = async(req: Request, res: Response) => {
 
