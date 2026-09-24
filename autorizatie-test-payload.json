@@ -17,6 +17,7 @@
     "email_modificat_3": "modificat3@example.com",
     "email_modificat_4": ""
   },
+  "pdfPhotoBase64": "",
   "pdfData": {
     "nr_autorizatie": "27",
     "data_autorizatie": "22.09.2026",

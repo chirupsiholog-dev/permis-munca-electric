@@ -478,9 +478,16 @@ export interface AutorizatieData{
 
 }
 
-export async function fillAutorizatiePdf(data: AutorizatieData, filePath: string){
+export async function fillAutorizatiePdf(data: AutorizatieData, pdfPhotoStoragePath: string){
 
-    const pdfBytes = await readFile(filePath)
+    //download pdf with photo bytes from storage
+    const {data: pdfBlob, error} = await supabase.storage.from('Documents').download(pdfPhotoStoragePath)
+    if(error)
+        throw new Error('Internal Server Error')
+    if(!pdfBlob)
+        throw new Error('Internal Server Error')
+
+    const pdfBytes = Buffer.from(await pdfBlob.arrayBuffer())
     const pdf = await PDFDocument.load(pdfBytes)
     // The template has an incremental catalog update (1 0 R -> 1 1 R).
     // pdf-lib retains both generations, but its writer cannot produce a valid

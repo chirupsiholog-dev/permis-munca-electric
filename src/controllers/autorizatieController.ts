@@ -2,7 +2,6 @@ import type { Request, Response } from "express";
 import { fillAutorizatiePdf, isJpeg, isPng, type AutorizatieData } from "../lib/utils.js";
 import { supabase } from "../lib/supabaseClient.js";
 import path from "node:path";
-import fs from 'fs'
 import { createEnvelope, getViewerLinks, uploadFile, type Semnatar } from "../lib/namirial.js";
 import crypto from 'crypto';
 import { readFile } from 'fs/promises'
@@ -34,11 +33,25 @@ interface AutorizatiePayload{
     emailAdmitent: string,
     emailExecutanti: EmailExecutanti,
     emailPersonalModificat: EmailModificat,
-    pdfData: AutorizatieData
+    pdfData: AutorizatieData,
+    pdfPhotoStoragePath: string
+}
+
+function sanitizeFileNamePart(value: string): string {
+    const sanitized = value
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+
+    return sanitized || 'unnamed';
 }
 
 const appUrl = process.env.APP_URL_NGROK;
 const webhookSecret = process.env.WEBHOOK_SECRET
+
+if (!appUrl || !webhookSecret)
+    throw new Error('Missing APP_URL or WEBHOOK_SECRET')
 
 export const postAutorizatie = async(req: Request, res: Response)=>{
 
@@ -48,7 +61,7 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             return res.status(400).json({ error: 'Date invalide' });
         }
 
-        const {emailAdmitent, emailSefLucrare, emailExecutanti, emailPersonalModificat, pdfData} = req.body as AutorizatiePayload
+        const {emailAdmitent, emailSefLucrare, emailExecutanti, emailPersonalModificat, pdfData, pdfPhotoStoragePath} = req.body as AutorizatiePayload
 
         if (!pdfData || typeof pdfData !== 'object' || Array.isArray(pdfData)) {
             return res.status(400).json({ error: 'pdfData invalid' });
@@ -197,22 +210,26 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
         }
 
         //generate pdf
-        const filePath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+        // const filePath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
 
-        if (!fs.existsSync(filePath)) {
-            //if the path does not exist
-            return res.status(500).json({
-                'error': 'Could not find PDF'
-            });
-        }
-        const pdfBytes = await fillAutorizatiePdf(pdfData, filePath)
+        // if (!fs.existsSync(filePath)) {
+        //     //if the path does not exist
+        //     return res.status(500).json({
+        //         'error': 'Could not find PDF'
+        //     });
+        // }
+
+        const pdfBytes = await fillAutorizatiePdf(pdfData, pdfPhotoStoragePath)
 
         //res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
         // res.setHeader('Content-Disposition', 'attachement; filename="autorizatie.pdf"')
         //res.setHeader('Content-Type', 'application/pdf')
         // res.send(pdfBytes)
 
-        const uniqueFileName = `autorizatie_lucru_${pdfData.emitent_nume}_${pdfData.sef_lucrare_nume_admitere}_${pdfData.admitent_nume}_${crypto.randomUUID()}.pdf`
+        const emitentFileName = sanitizeFileNamePart(pdfData.emitent_nume)
+        const sefLucrareFileName = sanitizeFileNamePart(pdfData.sef_lucrare_nume_admitere)
+        const admitentFileName = sanitizeFileNamePart(pdfData.admitent_nume)
+        const uniqueFileName = `autorizatie_lucru_${emitentFileName}_${sefLucrareFileName}_${admitentFileName}_${crypto.randomUUID()}.pdf`
         //upload to namirial
         const pdfBase64 = pdfBytes.toString('base64')
         const accessCode = crypto.randomBytes(32).toString('base64').substring(0, 6);
@@ -268,7 +285,6 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
 
 export const getAllAutorizatii = async(req: Request, res: Response) => {
     const userId = req.user;
-    console.log(userId)
 
     const { data, error } = await supabase
         .from('autorizatii')
@@ -298,55 +314,54 @@ export const getAllAutorizatii = async(req: Request, res: Response) => {
 }
 
 export const createPdfWithImages = async(req: Request, res: Response) => {
-    const file = req.file as Express.Multer.File;
-    console.log(file)
+    try {
+        const file = req.file as Express.Multer.File;
 
-    if (!file) {
-        return res.status(400).json({
-            'error': 'No images were uploaded in the form'
+        if (!file) {
+            return res.status(400).json({
+                'error': 'No images were uploaded in the form'
+            });
+        }
+
+        const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+
+        //access the pdf
+        const pdfBytes = await readFile(pdfPath);
+        const pdf = await PDFDocument.load(pdfBytes)
+
+        //add image to the beginning of page 2
+        const imageBuffer = file.buffer
+
+        let embeddedImage = null;
+        //handle the separate cases(images can be either jpeg or pdf)
+        if (isJpeg(imageBuffer)) {
+            embeddedImage = await pdf.embedJpg(imageBuffer);
+        } else if (isPng(imageBuffer)) {
+            embeddedImage = await pdf.embedPng(imageBuffer);
+        } else {
+            return res.status(400).json({
+                'error': 'Unsupported image format'
+            });
+        }
+
+        const page = pdf.getPage(1);
+        page.drawImage(embeddedImage, {
+            x: 55,
+            y: 360,
+            width: page.getWidth() / 1.25,
+            height: page.getHeight() / 2.3,
         });
-    }
-
-    const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
-
-    //access the pdf
-    const pdfBytes = await readFile(pdfPath);
-    const pdf = await PDFDocument.load(pdfBytes)
-
-    //add image to the beginning of page 2
-    const imageBuffer = file.buffer
-
-    let embeddedImage = null;
-    //handle the separate cases(images can be either jpeg or pdf)
-    if (isJpeg(imageBuffer)) {
-        embeddedImage = await pdf.embedJpg(imageBuffer);
-    } else if (isPng(imageBuffer)) {
-        embeddedImage = await pdf.embedPng(imageBuffer);
-    } else {
-        //we have unhandled case, skip embedding
-        return;
-    }
-
-    const page = pdf.getPage(1);
-    page.drawImage(embeddedImage, {
-        x: 55,
-        y: 360,
-        width: page.getWidth() / 1.25,
-        height: page.getHeight() / 2.3,
-    });
 
     const savedPdfBytes = await pdf.save();
     //for saving the actual pdf
-    await fs.writeFile('Autorizatie_de_lucru_form_cu_imagini.pdf', savedPdfBytes, (err) => {
-        if (err) throw err;
-        console.log('The file has been saved!');
-    });
+//     await fs.writeFile('Autorizatie_de_lucru_form_cu_imagini.pdf', savedPdfBytes, (err) => {
+//         if (err) throw err;
+//         console.log('The file has been saved!');
+//     });
 
     const pdfName =  `Autorizatie_de_lucru_form_cu_imagini_${crypto.randomUUID()}.pdf`;
 
-    const { error } = await supabase.storage.from('Documents').upload('pdfWithImage/' + pdfName, 
-        savedPdfBytes, 
-    { 
+    const { error } = await supabase.storage.from('Documents').upload('pdfWithImage/' + pdfName, savedPdfBytes, { 
         contentType: 'application/pdf' 
     });
 
