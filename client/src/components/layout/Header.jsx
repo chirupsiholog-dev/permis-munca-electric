@@ -12,7 +12,8 @@ const ADMIN_NAV = [
   { to: '/arhiva', label: 'Arhivă' },
   { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
   {to: '/cont-nou', label: 'Cont nou'},
-  {to: '/inventare', label: 'Invertoare'}
+  {to: '/inventare', label: 'Invertoare'},
+  {to: '/autorizatie', label: 'Autorizatii'}
 ]
 
 const USER_NAV = [

@@ -14,6 +14,7 @@ import AdminSiteReportsPage from './pages/AdminSiteReportsPage.jsx'
 import CreateNewAccount from './pages/CreateNewAccount.jsx'
 import SignupPage from './pages/SingupPage.jsx'
 import InventarePage from './pages/InventarePage.jsx'
+import AutorizatiePage from './pages/AutorizatiePage.jsx'
 
 /**
  * No AnimatePresence here on purpose. Keying <Routes> by pathname remounts the
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/rapoarte-on-site" element={<AdminSiteReportsPage />} />
         <Route path='/cont-nou' element = {<CreateNewAccount />} />
         <Route path='/inventare' element = {<InventarePage />} />
+        <Route path='/autorizatie' element = {<AutorizatiePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
