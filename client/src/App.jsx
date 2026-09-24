@@ -5,6 +5,7 @@ import AuthLayout from './components/layout/AuthLayout.jsx'
 import ArchivePage from './pages/ArchivePage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import AutorizatieFormPage from './pages/AutorizatieFormPage.jsx'
 import PermitFormPage from './pages/PermitFormPage.jsx'
 import EsgReportPage from './pages/ESGReportPage.jsx'
 import DailyReportForm from './pages/RaportOnSite.jsx'
@@ -31,6 +32,7 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/permise" element={<PermitFormPage />} />
+        <Route path="/autorizatii" element={<AutorizatieFormPage />} />
         <Route path="/arhiva" element={<ArchivePage />} />
         <Route path="/raport-zilnic" element={<DailyReportForm />} />
         <Route path="/pagina-rapoarte" element={<SiteReportsPage />} />

@@ -258,6 +258,8 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             'cod_acces': accessCode,
             'namirial_envelope_id': envelopeId,
             'workflow_status': 'pending_emitent',
+            'numar_autorizatie': pdfData.nr_autorizatie,
+            'data_lucrare': pdfData.data_autorizatie
         }).select().maybeSingle()
 
         if(metadataError)

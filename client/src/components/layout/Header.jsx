@@ -8,6 +8,7 @@ import { homePath } from '../../lib/roles.js'
 const ADMIN_NAV = [
   { to: '/', label: 'Acasă', end: true },
   { to: '/permise', label: 'Permise' },
+  { to: '/autorizatii', label: 'Autorizații' },
   { to: '/arhiva', label: 'Arhivă' },
   { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
   {to: '/cont-nou', label: 'Cont nou'},
@@ -29,7 +30,7 @@ export default function Header({ user }) {
       </NavLink>
 
       <div className="flex flex-wrap items-center gap-4 sm:gap-[22px]">
-        <nav aria-label="Navigare principală" className="flex items-center gap-[22px] text-nav font-bold uppercase tracking-label">
+        <nav aria-label="Navigare principală" className="flex flex-wrap items-center gap-x-[22px] gap-y-3 text-nav font-bold uppercase tracking-label">
           {nav.map((item) => (
             <NavLink
               key={item.to}
