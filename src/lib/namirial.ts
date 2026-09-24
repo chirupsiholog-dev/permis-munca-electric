@@ -133,8 +133,8 @@ export async function createEnvelope(doc: string, semnatari: Semnatar[], accessC
                     "RecipientConfiguration":{
                         "ContactInformation":{
                             "Email": s.email,
-                            "GivenName": s.prenume,
-                            "Surname": s.nume,
+                            "GivenName": s.prenume?.trim() || s.nume?.trim() || s.email.split('@')[0],
+                            "Surname": s.nume?.trim() || s.prenume?.trim() || s.email.split('@')[0],
                             "LanguageCode": "EN"
                         },
 
