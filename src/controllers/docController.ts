@@ -130,7 +130,8 @@ export const postDocument = async (req: Request, res: Response) => {
                 'page': 1, 'x': 398, 'y': 396
             }, {
                 'page': 3, 'x': 248, 'y': 695
-            }]
+            }],
+            signingTask: { orderIndex: 1, batchGroup: 'issuerSignatures', signingGroup: 'issuer' }
         });
 
         //second semnatar is sef_lucrare
@@ -144,7 +145,8 @@ export const postDocument = async (req: Request, res: Response) => {
                 'page': 2, 'x': 246, 'y': 376
             }, {
                 'page': 2, 'x': 227, 'y': 65
-            }]
+            }],
+            signingTask: { orderIndex: 2, batchGroup: 'supervisorSignatures', signingGroup: 'supervisor' }
         });
 
         //locate and read the file into a buffer
