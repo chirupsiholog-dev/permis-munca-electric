@@ -7,7 +7,7 @@ import { uploadImage } from '../middleware/uploadImage.js'
 const router = Router()
 
 router.post('/new', getCurrentUser, requireAdmin, postAutorizatie);
-router.post('/pdf-with-images', requireAdmin, uploadImage.single('image'), createPdfWithImages);
+router.post('/pdf-with-images', getCurrentUser, requireAdmin, uploadImage.single('image'), createPdfWithImages);
 router.get('/all', getCurrentUser, requireAdmin, getAllAutorizatii);
 router.get('/download/:id', getCurrentUser, requireAdmin, downloadSignedAutorizatie)
 
