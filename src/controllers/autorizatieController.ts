@@ -47,7 +47,7 @@ function sanitizeFileNamePart(value: string): string {
     return sanitized || 'unnamed';
 }
 
-const appUrl = process.env.APP_URL_NGROK;
+const appUrl = process.env.APP_URL;
 const webhookSecret = process.env.WEBHOOK_SECRET
 
 if (!appUrl || !webhookSecret)
