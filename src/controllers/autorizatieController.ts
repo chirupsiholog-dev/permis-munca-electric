@@ -375,7 +375,12 @@ export const createPdfWithImages = async(req: Request, res: Response) => {
         'data': 'pdfWithImage/' + pdfName,
         'message': 'Returned the storage path for pdf with image'
     });
+    }catch(error){
+        return res.status(500).json({error: 'Internal Server Error'})
+    }
+
 }
+
 export const downloadSignedAutorizatie = async(req: Request, res: Response) => {
 
     try{
