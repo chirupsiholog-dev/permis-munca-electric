@@ -7,6 +7,7 @@ import { openapiSpec } from './docs/openapi.js';
 import cors from 'cors'
 import siteReportsRoutes from './router/siteReportsRoutes.js'
 import inventarRoutes from './router/inventarRoutes.js'
+import autorizatieRoutes from './router/autorizatieRouter.js'
 
 
 const app = express();
@@ -44,5 +45,6 @@ app.use('/api/documents', docRoutes);
 app.use('/api/namirial', namirialRoutes);
 app.use('/api/site-reports', siteReportsRoutes);
 app.use('/api/inventar', inventarRoutes);
+app.use('/api/autorizatie', autorizatieRoutes)
 
 export default app;
