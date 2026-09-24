@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { PDFDocument, rgb } from 'pdf-lib';
-import { fillAutorizatiePdf, type AutorizatieData } from '../src/lib/utils.js';
+import { PDFDocument, PDFTextField, PDFCheckBox, rgb } from 'pdf-lib';
+import type { AutorizatieData } from '../src/lib/utils.js';
+import { formatAutorizatieLayout } from '../src/lib/autorizatieLayout.js';
 import { getAutorizatieSignatures, executantRows, modificareRows } from '../src/lib/autorizatieSignatures.js';
 import type { SignaturePosition } from '../src/lib/namirial.js';
 
@@ -11,8 +11,13 @@ import type { SignaturePosition } from '../src/lib/namirial.js';
 const root = new URL('../', import.meta.url);
 const payload = JSON.parse(await readFile(new URL('autorizatie-test-payload.json', root), 'utf8'));
 const data: AutorizatieData = payload.pdfData ?? payload;
-const bytes = await fillAutorizatiePdf(data, fileURLToPath(new URL('src/assets/Autorizatie_de_lucru_form.pdf', root)));
-const pdf = await PDFDocument.load(bytes);
+const pdf = await PDFDocument.load(await readFile(new URL('src/assets/Autorizatie_de_lucru_form.pdf', root)));
+for (const field of pdf.getForm().getFields()) {
+    const value = data[field.getName() as keyof AutorizatieData];
+    if (field instanceof PDFTextField && typeof value === 'string') field.setText(value);
+    if (field instanceof PDFCheckBox) value === true ? field.check() : field.uncheck();
+}
+await formatAutorizatieLayout(pdf);
 const allRows = { ...data };
 for (const nr of executantRows) {
     allRows[`executant_nume_nr${nr}`] = `Executant ${nr}`;

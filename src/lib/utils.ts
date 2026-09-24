@@ -6,6 +6,7 @@ import {PDFDocument, PDFRef} from 'pdf-lib';
 //is undefined and every call throws "cannot read properties of undefined".
 import { readFile } from 'fs/promises'
 import { supabase } from "./supabaseClient.js";
+import { formatAutorizatieLayout } from './autorizatieLayout.js';
 
 export async function generateZip(data: {documents: Document[], pdfAuditTrail: string}){
 
@@ -734,7 +735,17 @@ export async function fillAutorizatiePdf(data: AutorizatieData, pdfPhotoStorageP
         }
     }
 
+    await formatAutorizatieLayout(pdf);
+    // Separate widget objects can leave dangling page references after flatten.
+    const widgetRefs = form.getFields().flatMap(field => field.acroField.getWidgets()
+        .flatMap(widget => {
+            const ref = pdf.context.getObjectRef(widget.dict);
+            return ref ? [ref] : [];
+        }));
     form.flatten()
+    for (const page of pdf.getPages()) {
+        for (const ref of widgetRefs) page.node.removeAnnot(ref);
+    }
     const savedBytes = await pdf.save({ useObjectStreams: false })
     return Buffer.from(savedBytes)
 }

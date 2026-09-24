@@ -43,7 +43,7 @@ export function getAutorizatieSignatures(data: AutorizatieData) {
         admitent.push(box(5, 427, zoneY[nr - 1]!, 45, 19));
         sefLucrare.push(box(5, 476, zoneY[nr - 1]!, 50, 19));
     }
-    sefLucrare.push(box(5, 245, 398.5, 280, 12)); // Cap. C, point 8
+    sefLucrare.push(box(5, 245, 389.5, 280, 9.5)); // Cap. C, point 8, below both measures lines
 
     const executanti = {} as Record<ExecutantRow, SignaturePosition[]>;
     for (const nr of executantRows) {
