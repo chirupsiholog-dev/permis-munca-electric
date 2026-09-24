@@ -317,66 +317,62 @@ export const getAllAutorizatii = async(req: Request, res: Response) => {
 
 export const createPdfWithImages = async(req: Request, res: Response) => {
     
-    const file = req.file as Express.Multer.File;
+    try{
+        const file = req.file as Express.Multer.File;
 
-    if (!file) {
-        return res.status(400).json({
-            'error': 'No images were uploaded in the form'
+        if (!file) {
+            return res.status(400).json({
+                'error': 'No images were uploaded in the form'
+            });
+        }
+
+        const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+
+        //access the pdf
+        const pdfBytes = await readFile(pdfPath);
+        const pdf = await PDFDocument.load(pdfBytes)
+
+        //add image to the beginning of page 2
+        const imageBuffer = file.buffer
+
+        let embeddedImage = null;
+        //handle the separate cases(images can be either jpeg or pdf)
+        if (isJpeg(imageBuffer)) {
+            embeddedImage = await pdf.embedJpg(imageBuffer);
+        } else if (isPng(imageBuffer)) {
+            embeddedImage = await pdf.embedPng(imageBuffer);
+        } else {
+            return res.status(400).json({
+                'error': 'Unsupported image format'
+            });
+        }
+
+        const page = pdf.getPage(1);
+        page.drawImage(embeddedImage, {
+            x: 55,
+            y: 360,
+            width: page.getWidth() / 1.25,
+            height: page.getHeight() / 2.3,
         });
-    }
 
-    const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+        const savedPdfBytes = await pdf.save();
 
-    //access the pdf
-    const pdfBytes = await readFile(pdfPath);
-    const pdf = await PDFDocument.load(pdfBytes)
+        const pdfName =  `Autorizatie_de_lucru_form_cu_imagini_${crypto.randomUUID()}.pdf`;
 
-    //add image to the beginning of page 2
-    const imageBuffer = file.buffer
-
-    let embeddedImage = null;
-    //handle the separate cases(images can be either jpeg or pdf)
-    if (isJpeg(imageBuffer)) {
-        embeddedImage = await pdf.embedJpg(imageBuffer);
-    } else if (isPng(imageBuffer)) {
-        embeddedImage = await pdf.embedPng(imageBuffer);
-    } else {
-        return res.status(400).json({
-            'error': 'Unsupported image format'
+        const { error } = await supabase.storage.from('Documents').upload('pdfWithImage/' + pdfName, savedPdfBytes, { 
+            contentType: 'application/pdf' 
         });
-    }
 
-    const page = pdf.getPage(1);
-    page.drawImage(embeddedImage, {
-        x: 55,
-        y: 360,
-        width: page.getWidth() / 1.25,
-        height: page.getHeight() / 2.3,
-    });
+        if (error) {
+            return res.status(500).json({
+                'error': 'Error while uploading pdf with image to supabase'
+            });
+        }
 
-    const savedPdfBytes = await pdf.save();
-    //for saving the actual pdf
-//     await fs.writeFile('Autorizatie_de_lucru_form_cu_imagini.pdf', savedPdfBytes, (err) => {
-//         if (err) throw err;
-//         console.log('The file has been saved!');
-//     });
-
-    const pdfName =  `Autorizatie_de_lucru_form_cu_imagini_${crypto.randomUUID()}.pdf`;
-
-    const { error } = await supabase.storage.from('Documents').upload('pdfWithImage/' + pdfName, savedPdfBytes, { 
-        contentType: 'application/pdf' 
-    });
-
-    if (error) {
-        return res.status(500).json({
-            'error': 'Error while uploading pdf with image to supabase'
+        return res.status(200).json({
+            'data': 'pdfWithImage/' + pdfName,
+            'message': 'Returned the storage path for pdf with image'
         });
-    }
-
-    return res.status(200).json({
-        'data': 'pdfWithImage/' + pdfName,
-        'message': 'Returned the storage path for pdf with image'
-    });
     }catch(error){
         return res.status(500).json({error: 'Internal Server Error'})
     }
