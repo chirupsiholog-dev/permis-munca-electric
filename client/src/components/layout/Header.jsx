@@ -6,12 +6,14 @@ import UserBadge from './UserBadge.jsx'
 import { homePath } from '../../lib/roles.js'
 
 const ADMIN_NAV = [
-  { to: '/', label: 'Acasă', end: true },
-  { to: '/permise', label: 'Permise' },
-  { to: '/arhiva', label: 'Arhivă' },
-  { to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
+  {to: '/', label: 'Acasă', end: true },
+  {to: '/permise', label: 'Permise' },
+  {to: '/arhiva', label: 'Arhivă P.' },
+  {to: '/autorizatii', label: 'Autorizații' },
+  {to: '/autorizatie', label: 'Arhivă A.'},
+  {to: '/rapoarte-on-site', label: 'Rapoarte on-site' },
+  {to: '/inventare', label: 'Invertoare'},
   {to: '/cont-nou', label: 'Cont nou'},
-  {to: '/inventare', label: 'Invertoare'}
 ]
 
 const USER_NAV = [
@@ -29,7 +31,7 @@ export default function Header({ user }) {
       </NavLink>
 
       <div className="flex flex-wrap items-center gap-4 sm:gap-[22px]">
-        <nav aria-label="Navigare principală" className="flex items-center gap-[22px] text-nav font-bold uppercase tracking-label">
+        <nav aria-label="Navigare principală" className="flex flex-wrap items-center gap-x-[22px] gap-y-3 text-nav font-bold uppercase tracking-label">
           {nav.map((item) => (
             <NavLink
               key={item.to}
