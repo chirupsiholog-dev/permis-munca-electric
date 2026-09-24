@@ -478,9 +478,9 @@ export interface AutorizatieData{
 
 }
 
-export async function fillAutorizatiePdf(data: AutorizatieData, filePath: string){
+export async function fillAutorizatiePdf(data: AutorizatieData, pdfBase64: string){
 
-    const pdfBytes = await readFile(filePath)
+    const pdfBytes = Buffer.from(pdfBase64, 'base64')
     const pdf = await PDFDocument.load(pdfBytes)
     // The template has an incremental catalog update (1 0 R -> 1 1 R).
     // pdf-lib retains both generations, but its writer cannot produce a valid

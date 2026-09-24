@@ -33,7 +33,8 @@ interface AutorizatiePayload{
     emailAdmitent: string,
     emailExecutanti: EmailExecutanti,
     emailPersonalModificat: EmailModificat,
-    pdfData: AutorizatieData
+    pdfData: AutorizatieData,
+    pdfPhotoBase64: string
 }
 
 const appUrl = process.env.APP_URL_NGROK;
@@ -47,7 +48,7 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
             return res.status(400).json({ error: 'Date invalide' });
         }
 
-        const {emailAdmitent, emailSefLucrare, emailExecutanti, emailPersonalModificat, pdfData} = req.body as AutorizatiePayload
+        const {emailAdmitent, emailSefLucrare, emailExecutanti, emailPersonalModificat, pdfData, pdfPhotoBase64} = req.body as AutorizatiePayload
 
         if (!pdfData || typeof pdfData !== 'object' || Array.isArray(pdfData)) {
             return res.status(400).json({ error: 'pdfData invalid' });
@@ -196,15 +197,15 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
         }
 
         //generate pdf
-        const filePath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+        // const filePath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
 
-        if (!fs.existsSync(filePath)) {
-            //if the path does not exist
-            return res.status(500).json({
-                'error': 'Could not find PDF'
-            });
-        }
-        const pdfBytes = await fillAutorizatiePdf(pdfData, filePath)
+        // if (!fs.existsSync(filePath)) {
+        //     //if the path does not exist
+        //     return res.status(500).json({
+        //         'error': 'Could not find PDF'
+        //     });
+        // }
+        const pdfBytes = await fillAutorizatiePdf(pdfData, pdfPhotoBase64)
 
         //res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
         // res.setHeader('Content-Disposition', 'attachement; filename="autorizatie.pdf"')
