@@ -165,11 +165,11 @@ function removeDiacritics(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 } 
 
-function isJpeg(bytes: Uint8Array): boolean {
+export function isJpeg(bytes: Uint8Array): boolean {
     return bytes[0] === 0xFF && bytes[1] === 0xD8;
 }
 
-function isPng(bytes: Uint8Array): boolean {
+export function isPng(bytes: Uint8Array): boolean {
     return (
     bytes[0] === 0x89 &&
     bytes[1] === 0x50 && // 'P'
@@ -730,5 +730,4 @@ export async function fillAutorizatiePdf(data: AutorizatieData, filePath: string
     form.flatten()
     const savedBytes = await pdf.save({ useObjectStreams: false })
     return Buffer.from(savedBytes)
-
 }

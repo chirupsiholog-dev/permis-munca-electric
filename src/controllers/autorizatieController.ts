@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
-import { fillAutorizatiePdf, type AutorizatieData } from "../lib/utils.js";
+import { fillAutorizatiePdf, isJpeg, isPng, type AutorizatieData } from "../lib/utils.js";
 import { supabase } from "../lib/supabaseClient.js";
 import path from "node:path";
 import fs from 'fs'
 import { createEnvelope, getViewerLinks, uploadFile, type Semnatar } from "../lib/namirial.js";
 import crypto from 'crypto';
+import { readFile } from 'fs/promises'
+import {PDFDocument} from 'pdf-lib';
 import { getAutorizatieSignatures } from '../lib/autorizatieSignatures.js';
-import { error } from "node:console";
 
 
 interface EmailExecutanti{
@@ -265,6 +266,87 @@ export const postAutorizatie = async(req: Request, res: Response)=>{
     }
 }
 
+export const getAllAutorizatii = async(req: Request, res: Response) => {
+    const userId = req.user;
+    console.log(userId)
+
+    const { data, error } = await supabase
+        .from('autorizatii')
+        .select('*')
+        .eq('user_id', userId);
+
+    if (error) {
+        return res.status(500).json({
+            'error': error.message
+        })
+    }
+
+    if (!data || data.length === 0) {
+        return res.status(404).json({
+            'error': 'No documents found'
+        })
+    }
+
+    console.log('found: ', data);
+
+    return res.status(200).json({
+        'success': true,
+        'message': 'Sucessfully retrieved all autorizatii',
+        'data': data
+    });
+
+}
+
+export const createPdfWithImages = async(req: Request, res: Response) => {
+    const file = req.file as Express.Multer.File;
+    console.log(file)
+
+    if (!file) {
+        return res.status(400).json({
+            'error': 'No images were uploaded in the form'
+        });
+    }
+
+    const pdfPath = path.join(process.cwd(), 'src', 'assets', 'Autorizatie_de_lucru_form.pdf')
+
+    //access the pdf
+    const pdfBytes = await readFile(pdfPath);
+    const pdf = await PDFDocument.load(pdfBytes)
+
+    //add image to the beginning of page 2
+    const imageBuffer = file.buffer
+
+    let embeddedImage = null;
+    //handle the separate cases(images can be either jpeg or pdf)
+    if (isJpeg(imageBuffer)) {
+        embeddedImage = await pdf.embedJpg(imageBuffer);
+    } else if (isPng(imageBuffer)) {
+        embeddedImage = await pdf.embedPng(imageBuffer);
+    } else {
+        //we have unhandled case, skip embedding
+        return;
+    }
+
+    const page = pdf.getPage(1);
+    page.drawImage(embeddedImage, {
+        x: 55,
+        y: 360,
+        width: page.getWidth() / 1.25,
+        height: page.getHeight() / 2.3,
+    });
+
+    const savedPdfBytes = await pdf.save();
+    //for saving the file
+    const pdfWithImages = await fs.writeFile('Autorizatie_de_lucru_form_cu_imagini.pdf', savedPdfBytes, (err) => {
+        if (err) throw err;
+        console.log('The file has been saved!');
+    });
+
+    return res.status(200).json({
+        'data': Buffer.from(savedPdfBytes).toString('base64'),
+        'message': 'Returned the pdf bytes with embedded images'
+    });
+}
 export const downloadSignedAutorizatie = async(req: Request, res: Response) => {
 
     try{
